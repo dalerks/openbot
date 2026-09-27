@@ -1,0 +1,372 @@
+{
+ "bot_type": null,
+ "bounding_box": null,
+ "chamber_temperature": null,
+ "commanded_duration_s": null,
+ "duration_s": null,
+ "extruder_temperature": null,
+ "extruder_temperatures": [
+  null
+ ],
+ "extrusion_distance_mm": null,
+ "extrusion_distances_mm": [
+  null
+ ],
+ "extrusion_mass_g": null,
+ "extrusion_masses_g": [
+  null
+ ],
+ "material": "pla",
+ "materials": [
+  "pla"
+ ],
+ "num_z_layers": null,
+ "num_z_transitions": null,
+ "platform_temperature": null,
+ "thing_id": null,
+ "tool_type": null,
+ "tool_types": [
+  null
+ ],
+ "total_commands": null,
+ "miracle_config": {
+  "_bot": null,
+  "_extruders": [
+   null
+  ],
+  "_materials": [
+   "pla"
+  ],
+  "doRaft": true,
+  "gaggles": {
+   "default": {
+    "adjacentFillLeakyConnections": true,
+    "adjacentFillLeakyDistanceRatio": 1.4,
+    "backlashEpsilon": 0.05,
+    "backlashFeedback": 0.9,
+    "backlashX": 0.0,
+    "backlashY": 0.09,
+    "baseInsetDistanceMultiplier": 1.0,
+    "baseLayerHeight": 0.2,
+    "baseLayerWidth": 0.5,
+    "baseNumberOfShells": 1,
+    "bedZOffset": 0,
+    "bridgeAnchorMinimumLength": 0.8,
+    "bridgeAnchorWidth": 0.8,
+    "bridgeMaximumLength": 80.0,
+    "brimsBaseWidth": 2.5,
+    "brimsModelOffset": 0.0,
+    "brimsOverlapWidth": 1.5,
+    "coarseness": 0.0001,
+    "computeVolumeLike2_1_0": false,
+    "defaultExtruder": 0,
+    "defaultSupportMaterial": 0,
+    "description": "",
+    "doBacklashCompensation": false,
+    "doBreakawaySupport": true,
+    "doBridging": true,
+    "doBrims": false,
+    "doExponentialDeceleration": true,
+    "doExternalSpurs": true,
+    "doFanCommand": true,
+    "doFanModulation": true,
+    "doFixedLayerStart": false,
+    "doFixedShellStart": true,
+    "doInternalSpurs": false,
+    "doMinfill": false,
+    "doMixedRaft": false,
+    "doMixedSupport": false,
+    "doNewPathPlanning": true,
+    "doPaddedBase": false,
+    "doRaft": true,
+    "doRateLimit": true,
+    "doSplitLongMoves": false,
+    "doSupport": true,
+    "doSupportUnderBridges": false,
+    "exponentialDecelerationMinSpeed": 0.0,
+    "exponentialDecelerationRatio": 0.375,
+    "exponentialDecelerationSegmentCount": 10,
+    "extruderProfiles": [
+     {
+      "defaultTemperature": 215,
+      "extrusionProfiles": {
+       "bridges": {
+        "fanSpeed": 0.95,
+        "feedrate": 40.0
+       },
+       "brims": {
+        "fanSpeed": 0.5,
+        "feedrate": 10.0
+       },
+       "firstModelLayer": {
+        "fanSpeed": 1.0,
+        "feedrate": 30.0
+       },
+       "floorSurfaceFills": {
+        "fanSpeed": 0.5,
+        "feedrate": 90
+       },
+       "infill": {
+        "fanSpeed": 0.5,
+        "feedrate": 90
+       },
+       "insets": {
+        "fanSpeed": 0.95,
+        "feedrate": 90
+       },
+       "outlines": {
+        "fanSpeed": 0.95,
+        "feedrate": 40
+       },
+       "purge": {
+        "fanSpeed": 0.5,
+        "feedrate": 100
+       },
+       "raft": {
+        "fanSpeed": 0.95,
+        "feedrate": 90.0
+       },
+       "raftBase": {
+        "fanSpeed": 0.5,
+        "feedrate": 10.0
+       },
+       "roofSurfaceFills": {
+        "fanSpeed": 0.5,
+        "feedrate": 90
+       },
+       "sparseRoofSurfaceFills": {
+        "fanSpeed": 0.5,
+        "feedrate": 90
+       },
+       "spurs": {
+        "fanSpeed": 0.5,
+        "feedrate": 40
+       }
+      },
+      "extrusionVolumeMultiplier": 1.0,
+      "feedDiameter": 1.77,
+      "idleTemperature": 190,
+      "nozzleDiameter": 0.4,
+      "oozeFeedstockDistance": 0.1,
+      "preOozeFeedstockDistance": 0.1,
+      "restartExtraDistance": 0.1,
+      "restartRate": 30,
+      "retractDistance": 0.5,
+      "retractRate": 50,
+      "toolchangeRestartDistance": 18.5,
+      "toolchangeRestartRate": 6.0,
+      "toolchangeRetractDistance": 19.0,
+      "toolchangeRetractRate": 6.0
+     }
+    ],
+    "fanDefaultSpeed": 0.95,
+    "fanLayer": 1,
+    "fanModulationThreshold": 0.5,
+    "fanModulationWindow": 0.1,
+    "fixedLayerStartX": 0,
+    "fixedLayerStartY": 0,
+    "fixedShellStartDirection": 215,
+    "floorSolidThickness": 0,
+    "floorSurfaceThickness": 0.8,
+    "floorThickness": 0.8,
+    "horizontalInset": 0,
+    "infillDensity": 0.4,
+    "infillShellSpacingMultiplier": 0.55,
+    "insetDistanceMultiplier": 1.0,
+    "layerHeight": 0.2,
+    "leakyConnectionsAdjacentDistance": 0.8,
+    "maxConnectionLength": 10.0,
+    "maxSparseFillThickness": 0.2,
+    "maxSpurWidth": 0.5,
+    "minLayerDuration": 5.0,
+    "minLayerHeight": 0.01,
+    "minRaftBaseGap": 10.0,
+    "minSpeedMultiplier": 0.3,
+    "minSpurLength": 0.34,
+    "minSpurWidth": 0.12,
+    "minThickInfillImprovement": 1.0,
+    "minimumMoveDistance": 0.01,
+    "modelFillProfiles": {
+     "bridge": {
+      "density": 1.0,
+      "orientationInterval": 0,
+      "orientationOffset": 0,
+      "orientationRange": 360,
+      "pattern": "bridge_fill"
+     },
+     "floor_surface": {
+      "density": 1.0,
+      "orientationInterval": 90,
+      "orientationRange": 90,
+      "pattern": "linear"
+     },
+     "roof_surface": {
+      "density": 1.0,
+      "orientationInterval": 90,
+      "orientationRange": 360,
+      "pattern": "linear"
+     },
+     "solid": {
+      "density": 1.0,
+      "orientationInterval": 90,
+      "orientationRange": 90,
+      "pattern": "linear"
+     },
+     "sparse": {
+      "density": 0.4,
+      "orientationInterval": 90,
+      "orientationOffset": 0,
+      "orientationRange": 90,
+      "pattern": "linear"
+     },
+     "sparse_roof_surface": {
+      "density": 0.4,
+      "orientationInterval": 90,
+      "orientationOffset": 0,
+      "orientationRange": 90,
+      "pattern": "linear"
+     }
+    },
+    "numberOfBrims": 5,
+    "numberOfExtentShells": 2,
+    "numberOfInternalBrims": 5,
+    "numberOfShells": 2,
+    "numberOfSparseShells": 0,
+    "numberOfSupportShells": 0,
+    "paddedBaseOutlineOffset": -0.5,
+    "pauseHeights": [],
+    "purgeBaseRotation": 45,
+    "purgeBucketSide": 4.0,
+    "purgeWallBaseFilamentWidth": 2.0,
+    "purgeWallBasePatternLength": 10.0,
+    "purgeWallBasePatternWidth": 8.0,
+    "purgeWallModelOffset": 2.0,
+    "purgeWallPatternWidth": 2.0,
+    "purgeWallSpacing": 1.0,
+    "purgeWallWidth": 0.5,
+    "purgeWallXLength": 30,
+    "raftBaseInfillShellSpacingMultiplier": 0.1,
+    "raftBaseInsetDistanceMultiplier": 0.4,
+    "raftBaseLayers": 1,
+    "raftBaseOutset": 4,
+    "raftBaseShells": 3,
+    "raftBaseThickness": 0.3,
+    "raftBaseWidth": 2.5,
+    "raftBrimsSpacing": 1.0,
+    "raftExtraOffset": 0.0,
+    "raftFillProfiles": {
+     "base": {
+      "density": 0.2,
+      "linearFillGroupDensity": 2.2,
+      "linearFillGroupSize": 3,
+      "orientationInterval": 0,
+      "orientationOffset": 0,
+      "orientationRange": 180,
+      "pattern": "linear"
+     },
+     "interface": {
+      "density": 0.5,
+      "orientationInterval": 90,
+      "orientationOffset": 45,
+      "orientationRange": 360,
+      "pattern": "linear"
+     },
+     "surface": {
+      "density": 0.85,
+      "orientationInterval": 90,
+      "orientationOffset": 0,
+      "orientationRange": 90,
+      "pattern": "local_no_warp"
+     }
+    },
+    "raftInterfaceLayers": 2,
+    "raftInterfaceShells": 0,
+    "raftInterfaceThickness": 0.27,
+    "raftInterfaceWidth": 0.4,
+    "raftInterfaceZOffset": -0.14,
+    "raftModelShellsSpacing": 0.26,
+    "raftModelSpacing": 0.33,
+    "raftSupportSpacing": 0.1,
+    "raftSurfaceInsetDistanceMultiplier": 0.8,
+    "raftSurfaceLayers": 2,
+    "raftSurfaceOutset": 4,
+    "raftSurfaceShellSpacingMultiplier": 0.7,
+    "raftSurfaceShells": 2,
+    "raftSurfaceThickness": 0.27,
+    "raftSurfaceZOffset": -0.03,
+    "rateLimitBufferSize": 100,
+    "rateLimitMinSpeed": 10,
+    "rateLimitSpeedRatio": 0.3,
+    "rateLimitSplitBias": 0,
+    "rateLimitSplitMoveDistance": 0.75,
+    "rateLimitSplitRecursionDepth": 8,
+    "rateLimitTransmissionRate": 150,
+    "roofAnchorMargin": 0.4,
+    "roofSolidThickness": 0,
+    "roofSurfaceThickness": 0.8,
+    "roofThickness": 0.8,
+    "shellsLeakyConnections": true,
+    "splitMinimumDistance": 0.4,
+    "startPosition": {
+     "x": null,
+     "y": null,
+     "z": null
+    },
+    "supportAngle": 15,
+    "supportBreakawayModelOffset": -0.15,
+    "supportBreakawayModelRoofSpacing": 0.16,
+    "supportCutout": 0.1,
+    "supportCutoutExtraDistance": 0.6,
+    "supportExtraDistance": 0.5,
+    "supportFillProfiles": {
+     "solid": {
+      "density": 0.32,
+      "orientationInterval": 0,
+      "orientationOffset": 45,
+      "orientationRange": 360,
+      "pattern": "hilbert_fill"
+     },
+     "sparse": {
+      "consistentOrder": true,
+      "density": 0.16,
+      "orientationInterval": 0,
+      "orientationOffset": 45,
+      "orientationRange": 0,
+      "pattern": "linear"
+     }
+    },
+    "supportInsetDistanceMultiplier": 1.0,
+    "supportInteriorExtruder": 0,
+    "supportLayerHeight": 0.2,
+    "supportLeakyConnections": true,
+    "supportModelSpacing": 0.4,
+    "supportRoofModelSpacing": 0.4,
+    "supportRoofSolidThickness": 3.0,
+    "supportShellSpacingMultiplier": 0.55,
+    "thickLayerThreshold": 0,
+    "thickLayerVolumeMultiplier": 1,
+    "travelSpeedXY": 150,
+    "travelSpeedZ": 23,
+    "useRelativeExtruderPositions": false
+   }
+  },
+  "version": "5.6.0"
+ },
+ "preferences": {
+  "default": {
+   "overrides": {
+    "defaultSupportMaterial": 0,
+    "doSupport": true,
+    "doSupportUnderBridges": false,
+    "modelFillProfiles.sparse.density": 0.4,
+    "supportAngle": 15,
+    "supportFillProfiles.sparse.density": 0.16,
+    "supportModelSpacing": 0.4,
+    "undefined": 0
+   },
+   "print_mode": "balanced"
+  }
+ },
+ "uuid": "87fe421b-427a-4657-be72-28b7a6beee72",
+ "version": "1.2.0"
+}

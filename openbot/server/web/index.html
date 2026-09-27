@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OpenBot</title>
+<link rel="icon" href="/web/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/web/style.css">
+</head>
+<body>
+<header>
+  <div class="brand">
+    <span class="logo" aria-hidden="true"></span>
+    <div>
+      <h1>OpenBot</h1>
+      <p id="server-line" class="muted">Connecting…</p>
+    </div>
+  </div>
+  <div id="who" class="muted"></div>
+</header>
+
+<main>
+  <!-- Shown until this browser is paired with the server -->
+  <section id="pair" class="card" hidden>
+    <h2>Connect this browser</h2>
+    <p>This server only talks to devices its owner has allowed. Ask to join, then have
+       them allow it on the server (OpenBot's Share page on the Mac, or
+       <code>sudo openbot-server server approve CODE</code> on a Raspberry Pi).</p>
+    <form id="pair-form">
+      <label>Name for this browser <input id="pair-name" required maxlength="60"></label>
+      <details>
+        <summary>First time? I have a setup code</summary>
+        <label>Setup code <input id="setup-code" placeholder="XXXX-XXXX" autocomplete="off"></label>
+      </details>
+      <button type="submit" class="primary">Ask to join</button>
+    </form>
+    <div id="pair-wait" hidden>
+      <p>Waiting for approval. The server shows this code:</p>
+      <p id="pair-code" class="code"></p>
+      <p class="muted">Check it matches before allowing.</p>
+    </div>
+    <p id="pair-error" class="error" hidden></p>
+  </section>
+
+  <div id="app" hidden>
+    <section class="card" id="status-card">
+      <div class="row">
+        <h2 id="printer-name">Printer</h2>
+        <span id="printer-state" class="pill"></span>
+      </div>
+      <p id="process" class="big">Idle</p>
+      <div class="bar"><div id="progress-fill"></div></div>
+      <dl class="temps">
+        <div><dt>Nozzle</dt><dd id="t-nozzle">–</dd></div>
+        <div id="bed-row" hidden><dt>Bed</dt><dd id="t-bed">–</dd></div>
+      </dl>
+      <div class="actions operator-only">
+        <button id="btn-pause">Pause</button>
+        <button id="btn-cancel" class="danger">Cancel print</button>
+      </div>
+    </section>
+
+    <section class="card" id="camera-card" hidden>
+      <div class="row">
+        <h2>Camera</h2>
+        <button id="btn-camera">Start camera</button>
+      </div>
+      <img id="camera" alt="Live view of the build plate" hidden>
+    </section>
+
+    <section class="card" id="queue-card">
+      <h2>Queue</h2>
+      <p class="muted">Jobs start only after someone confirms the build plate is clear.</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>File</th><th>State</th><th>From</th><th></th></tr></thead>
+          <tbody id="queue"></tbody>
+        </table>
+      </div>
+      <p id="queue-empty" class="muted">No jobs.</p>
+      <form id="upload-form" class="operator-only">
+        <label>Add a print file <input type="file" id="upload-file" required></label>
+        <button type="submit" class="primary">Send to queue</button>
+        <progress id="upload-progress" max="100" value="0" hidden></progress>
+      </form>
+    </section>
+
+    <section class="card admin-only" id="admin-card">
+      <h2>Devices</h2>
+      <h3>Waiting to join</h3>
+      <ul id="pending" class="list"></ul>
+      <p id="pending-empty" class="muted">No requests.</p>
+      <h3>Allowed</h3>
+      <ul id="clients" class="list"></ul>
+    </section>
+  </div>
+  <p id="toast" class="toast" hidden></p>
+</main>
+
+<footer>
+  <div>
+    <strong>OpenBot</strong> is a
+    <a id="publisher" href="https://www.lighthouseconsulting.com" target="_blank" rel="noopener">Lighthouse Consulting</a>
+    project · <a id="repo" href="https://github.com/dalerks/openbot" target="_blank" rel="noopener">Source (GPL-3.0)</a>
+  </div>
+  <a id="donate" class="donate" href="#" target="_blank" rel="noopener">♥ Support OpenBot, suggested $20</a>
+</footer>
+<script src="/web/app.js"></script>
+</body>
+</html>

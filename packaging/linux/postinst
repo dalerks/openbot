@@ -1,0 +1,23 @@
+#!/bin/sh
+set -e
+if ! getent passwd openbot >/dev/null; then
+    adduser --system --group --home /var/lib/openbot openbot
+fi
+usermod -aG dialout openbot || true
+install -d -o openbot -g openbot -m 0700 /var/lib/openbot
+# Python dependencies come from PyPI into a private venv (aarch64 wheels exist for all).
+python3 -m venv /opt/openbot/venv
+/opt/openbot/venv/bin/pip install --quiet --upgrade pip
+/opt/openbot/venv/bin/pip install --quiet --force-reinstall --no-deps /opt/openbot/wheels/openbot-*.whl
+/opt/openbot/venv/bin/pip install --quiet /opt/openbot/wheels/openbot-*.whl
+if [ -d /run/systemd/system ]; then
+    systemctl daemon-reload
+    systemctl enable openbot.service >/dev/null
+    if grep -Eq '^[[:space:]]*(usb_port|address)[[:space:]]*=' /etc/openbot/server.toml; then
+        systemctl restart openbot.service
+    else
+        echo "OpenBot installed. Set your printer in /etc/openbot/server.toml, then:"
+        echo "  sudo systemctl start openbot"
+    fi
+fi
+exit 0

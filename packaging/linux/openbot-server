@@ -1,0 +1,18 @@
+#!/bin/sh
+# Run the openbot CLI as the service user, against the server's data folder.
+#   sudo openbot-server server pending          pairing requests waiting for approval
+#   sudo openbot-server server approve 123456   let a Mac join (add --role admin|viewer)
+#   sudo openbot-server server clients          who may use this server
+#   sudo openbot-server setup-code              the first-Admin setup code
+#   sudo openbot-server -p IP pair              pair with a MakerBot printer
+set -e
+if [ "$1" = "setup-code" ]; then
+    journalctl -u openbot --no-pager | grep -o 'Setup code for the first client: [A-Z0-9-]*' \
+        | tail -1 || echo "no setup code (an Admin already exists)"
+    exit 0
+fi
+if [ "$(id -u)" -ne 0 ]; then
+    echo "run with sudo" >&2
+    exit 1
+fi
+exec runuser -u openbot -- env OPENBOT_DATA=/var/lib/openbot /opt/openbot/venv/bin/openbot "$@"

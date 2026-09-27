@@ -1,0 +1,24 @@
+[Unit]
+Description=OpenBot printer server (shares a 3D printer with OpenBot apps)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=openbot
+Group=openbot
+Environment=OPENBOT_DATA=/var/lib/openbot
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/opt/openbot/venv/bin/openbot serve --config /etc/openbot/server.toml
+Restart=on-failure
+RestartSec=10
+# Hardening: the server only needs its data folder and the USB serial device.
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+ReadWritePaths=/var/lib/openbot
+SupplementaryGroups=dialout
+
+[Install]
+WantedBy=multi-user.target

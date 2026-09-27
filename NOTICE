@@ -1,0 +1,41 @@
+OpenBot
+Copyright (C) 2026 Lighthouse Consulting <https://www.lighthouseconsulting.com>
+
+This program is free software: you can redistribute it and/or modify it under the terms
+of the GNU General Public License as published by the Free Software Foundation, either
+version 3 of the License, or (at your option) any later version. See LICENSE.
+
+This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+
+-------------------------------------------------------------------------------
+Third-party work OpenBot builds on
+-------------------------------------------------------------------------------
+
+mbotmake (charely6/mbotmake), GPL-3.0
+  The .makerbot meta.json template (openbot/slicing/data/meta_template.json) and parts
+  of the G-code conversion approach are derived from it.
+
+queue3d (garfield-arlene/queue3d), MIT License
+  The Replicator+ OrcaSlicer profile (openbot/slicing/data/replicator_plus_base.json)
+  was adapted from its profile; its hardware notes informed the network protocol work.
+
+OrcaSlicer (SoftFever/OrcaSlicer), AGPL-3.0
+  Bundled unmodified in the macOS app as a separate program and run as a subprocess.
+  Its printer profiles (Creality) are read at runtime. Source:
+  https://github.com/OrcaSlicer/OrcaSlicer
+
+Protocol research also drew on tjhorner/makerbot-rpc, tjhorner/node-makerbot-rpc,
+abdyfranco/makerbot-php and charely6/makerbot-gen5-api (reference only, no code copied).
+
+Python libraries used at runtime, under their own licenses: PySide6/Qt (LGPL-3.0),
+qasync (BSD-2-Clause), cryptography (Apache-2.0/BSD), aiohttp (Apache-2.0),
+zeroconf (LGPL-2.1), keyring (MIT), pyserial (BSD-3-Clause).
+
+-------------------------------------------------------------------------------
+Trademarks
+-------------------------------------------------------------------------------
+
+OpenBot is not affiliated with or endorsed by MakerBot, UltiMaker, Stratasys or Creality.
+"MakerBot", "Replicator", "Creality" and "Ender" are trademarks of their respective
+owners and are used only to identify compatible printers.

@@ -1,0 +1,18 @@
+# OpenBot server settings. After editing:  sudo systemctl restart openbot
+
+[server]
+# name = "garage-pi"        # shown to OpenBot apps (default: this computer's name)
+port = 8765
+bonjour = true               # let Macs find this server automatically
+
+[printer]
+# Pick ONE printer and uncomment its lines.
+
+# Creality Ender-3 family over USB (find the port with:  ls /dev/ttyUSB* /dev/ttyACM*)
+# type = "ender3_pro"        # ender3, ender3_pro, ender3_v2, ender3_s1, ender3_v3_se
+# usb_port = "/dev/ttyUSB0"
+
+# MakerBot Replicator+ on the network. Trust + pair it once first:
+#   sudo openbot-server -p 192.168.1.154 pair      (then press the knob on the printer)
+# type = "replicator_plus"
+# address = "192.168.1.154"

@@ -1,0 +1,45 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "openbot"
+version = "0.1.0"
+description = "Network host software for the MakerBot Replicator+ (replaces MakerBot Desktop/Print)"
+readme = "README.md"
+license = { text = "GPL-3.0-or-later" }
+authors = [{ name = "Lighthouse Consulting", email = "jrounds@lighthouseconsult.com" }]
+requires-python = ">=3.11"
+dependencies = [
+    "cryptography>=42",
+    "zeroconf>=0.130",
+    "keyring>=25; sys_platform == 'darwin'",
+    "pyserial>=3.5",
+    "aiohttp>=3.9",
+]
+
+[project.urls]
+Homepage = "https://www.lighthouseconsulting.com"
+Source = "https://github.com/dalerks/openbot"
+
+[project.optional-dependencies]
+# Qt 6.8 LTS is the last line supporting macOS 12 (PLAN.md §3).
+app = ["PySide6-Essentials>=6.8,<6.9", "qasync>=0.27"]
+dev = ["pytest>=8", "pytest-asyncio>=0.23"]
+
+[project.scripts]
+openbot = "openbot.cli:main"
+
+[project.gui-scripts]
+openbot-app = "openbot.app.main:main"
+
+[tool.setuptools.packages.find]
+include = ["openbot*"]
+
+[tool.setuptools.package-data]
+"openbot.slicing" = ["data/*.json"]
+"openbot.server" = ["web/*"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]

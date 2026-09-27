@@ -1,0 +1,24 @@
+# Python / builds
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv*/
+build/
+dist/
+.pytest_cache/
+
+# OrcaSlicer is downloaded separately (see README), not committed
+vendor/
+
+# Hardware probe output: printer credentials, certificates, camera photos
+probe_out/
+auth.json
+
+# MakerBot's own sample print file (not redistributable; see tests/test_slicing.py)
+tests/fixtures/1cm_block_repplus.makerbot
+
+# macOS
+.DS_Store
+
+# OrcaSlicer error logs
+*.log

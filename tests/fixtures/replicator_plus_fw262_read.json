@@ -1,0 +1,71 @@
+{
+ "get_system_information": {
+  "machine_type": "horseshoe",
+  "toolheads": {
+   "extruder": [
+    {
+     "current_temperature": 45,
+     "tool_id": 8,
+     "tool_present": true,
+     "index": 0,
+     "error": 0,
+     "target_temperature": 0,
+     "filament_presence": true,
+     "preheating": false
+    }
+   ]
+  },
+  "ip": "192.168.1.154",
+  "has_been_connected_to": false,
+  "api_version": "1.9.0",
+  "firmware_version": {
+   "major": 2,
+   "minor": 6,
+   "bugfix": 2,
+   "build": 734
+  },
+  "current_process": null,
+  "machine_name": "MakerBot Replicator+",
+  "sound": true,
+  "bot_type": "replicator_b",
+  "disabled_errors": [],
+  "auto_unload": "off"
+ },
+ "network_state": {
+  "gateway": "192.168.1.1",
+  "tethering": false,
+  "ip": "192.168.1.154",
+  "wifi": "enabled",
+  "static": false,
+  "dns": [
+   "192.168.1.1"
+  ],
+  "tether_name": "",
+  "state": "ethernet",
+  "netmask": "255.255.255.0",
+  "service_hash": "eth"
+ },
+ "wifi_scan": [
+  {
+   "password": "required",
+   "path": "/net/connman/service/wifi_redacted_0",
+   "name": "",
+   "strength": 60
+  },
+  {
+   "password": "required",
+   "path": "/net/connman/service/wifi_redacted_1",
+   "name": "HomeWiFi-5G",
+   "strength": 60
+  },
+  {
+   "password": "required",
+   "path": "/net/connman/service/wifi_redacted_2",
+   "name": "HomeWiFi",
+   "strength": 59
+  }
+ ],
+ "get_static_ipv4": {
+  "use_static": false
+ }
+}
