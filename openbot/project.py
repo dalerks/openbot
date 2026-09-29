@@ -4,7 +4,7 @@ import os
 
 NAME = "OpenBot"
 PUBLISHER = "Lighthouse Consulting"
-PUBLISHER_URL = "https://www.lighthouseconsult.com"
+PUBLISHER_URL = "https://www.lighthouseconsult.com/case-studies/openbot/"
 REPO_URL = "https://github.com/dalerks/openbot"
 HOMEPAGE_URL = "https://www.josephrounds.dev/openbot/"
 LICENSE = "GPL-3.0-or-later"

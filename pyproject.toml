@@ -20,7 +20,7 @@ dependencies = [
 
 [project.urls]
 Homepage = "https://www.josephrounds.dev/openbot/"
-Publisher = "https://www.lighthouseconsult.com"
+Publisher = "https://www.lighthouseconsult.com/case-studies/openbot/"
 Source = "https://github.com/dalerks/openbot"
 
 [project.optional-dependencies]

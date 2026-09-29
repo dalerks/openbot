@@ -6,7 +6,7 @@
 
 <p align="center">
   Free, open host software for the <b>MakerBot Replicator+</b> and <b>Creality Ender-3</b> printers.<br>
-  A <a href="https://www.lighthouseconsult.com">Lighthouse Consulting</a> project ·
+  A <a href="https://www.lighthouseconsult.com/case-studies/openbot/">Lighthouse Consulting</a> project ·
   <a href="https://www.josephrounds.dev/openbot/">Project page</a>
 </p>
 
@@ -100,7 +100,7 @@ OpenBot is free. If it saved your printer from the landfill, please consider sup
 development: **suggested $20**.
 
 <!-- Replace with the Stripe Payment Link once it exists (also set DONATE_URL in openbot/project.py). -->
-**[♥ Donate to OpenBot](https://www.lighthouseconsult.com)**
+**[♥ Donate to OpenBot](https://www.lighthouseconsult.com/case-studies/openbot/)**
 
 ## License
 
