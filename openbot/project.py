@@ -6,6 +6,7 @@ NAME = "OpenBot"
 PUBLISHER = "Lighthouse Consulting"
 PUBLISHER_URL = "https://www.lighthouseconsult.com"
 REPO_URL = "https://github.com/dalerks/openbot"
+HOMEPAGE_URL = "https://www.josephrounds.dev/openbot/"
 LICENSE = "GPL-3.0-or-later"
 
 SUGGESTED_DONATION_USD = 20
@@ -21,5 +22,5 @@ def donate_url():
 
 def public_info():
     return {"name": NAME, "publisher": PUBLISHER, "publisher_url": PUBLISHER_URL,
-            "repo_url": REPO_URL, "license": LICENSE, "donate_url": donate_url(),
+            "repo_url": REPO_URL, "homepage_url": HOMEPAGE_URL, "license": LICENSE, "donate_url": donate_url(),
             "suggested_donation_usd": SUGGESTED_DONATION_USD}

@@ -247,4 +247,5 @@ async def test_web_page_and_project_info(served, client_trust):
         async with s.get(base + "/api/info") as r:
             info = await r.json()
         assert info["project"]["publisher_url"] == "https://www.lighthouseconsult.com"
+        assert info["project"]["homepage_url"] == "https://www.josephrounds.dev/openbot/"
         assert info["project"]["suggested_donation_usd"] == 20

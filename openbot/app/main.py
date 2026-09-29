@@ -78,6 +78,9 @@ class MainWindow(QMainWindow):
         donate = QAction(f"Support OpenBot (suggested ${project.SUGGESTED_DONATION_USD})…", self)
         donate.triggered.connect(self._donate)
         help_menu.addAction(donate)
+        home = QAction("OpenBot Project Page", self)
+        home.triggered.connect(lambda: QDesktopServices.openUrl(QUrl(project.HOMEPAGE_URL)))
+        help_menu.addAction(home)
         source = QAction("Source Code on GitHub", self)
         source.triggered.connect(lambda: QDesktopServices.openUrl(QUrl(project.REPO_URL)))
         help_menu.addAction(source)
@@ -94,6 +97,7 @@ class MainWindow(QMainWindow):
             f"<p>A <a href='{project.PUBLISHER_URL}'>{project.PUBLISHER}</a> project.<br>"
             f"Free software under the GNU GPL v3 or later: "
             f"<a href='{project.REPO_URL}'>source code</a>.</p>"
+            f"<p><a href='{project.HOMEPAGE_URL}'>Project page</a></p>"
             "<p>Includes OrcaSlicer (AGPL-3.0). Not affiliated with MakerBot, UltiMaker or "
             "Creality.</p>")
 

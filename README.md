@@ -6,7 +6,8 @@
 
 <p align="center">
   Free, open host software for the <b>MakerBot Replicator+</b> and <b>Creality Ender-3</b> printers.<br>
-  A <a href="https://www.lighthouseconsult.com">Lighthouse Consulting</a> project.
+  A <a href="https://www.lighthouseconsult.com">Lighthouse Consulting</a> project ·
+  <a href="https://www.josephrounds.dev/openbot/">Project page</a>
 </p>
 
 <p align="center">

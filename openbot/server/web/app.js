@@ -71,6 +71,7 @@ function showProject(p) {
   if (p.publisher_url) $("publisher").href = p.publisher_url;
   if (p.publisher) $("publisher").textContent = p.publisher;
   if (p.repo_url) $("repo").href = p.repo_url;
+  if (p.homepage_url) $("homepage").href = p.homepage_url;
   const d = $("donate");
   d.textContent = `♥ Support OpenBot, suggested $${p.suggested_donation_usd || 20}`;
   if (p.donate_url) {
