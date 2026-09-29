@@ -1002,6 +1002,11 @@ class MonitorPage(Page):
         self.camera.setMinimumSize(480, 360)
         self.camera.setStyleSheet("background:#111; color:#aaa; border-radius:6px;")
         right.addWidget(self.camera, 1)
+        self.cam_pct = QLabel(self.camera)      # print progress overlaid on the feed
+        self.cam_pct.setStyleSheet("background:rgba(0,0,0,160); color:white; font-weight:600;"
+                                   "font-size:15px; padding:3px 8px; border-radius:4px;")
+        self.cam_pct.move(8, 8)
+        self.cam_pct.hide()
         crow = QHBoxLayout()
         self.cam_btn = QPushButton("Start Camera")
         self.cam_btn.clicked.connect(self._toggle_camera)
@@ -1049,11 +1054,16 @@ class MonitorPage(Page):
             self.process.setText("<h3>Idle</h3>")
             self.progress.setValue(0)
             self.times.setText("")
+            self.cam_pct.hide()
         else:
             step = (p.step or "").replace("_", " ")
             what = ("Printing" if p.is_print else "Printing from SD" if p.name == "SDPrint"
                     else p.name)
-            self.process.setText(f"<h3>{what}: {step}</h3>")
+            pct = f" · {p.progress:.0f}%" if p.progress is not None else ""
+            self.process.setText(f"<h3>{what}: {step}{pct}</h3>")
+            self.cam_pct.setText(f"{p.progress:.0f}%" if p.progress is not None else "")
+            self.cam_pct.adjustSize()
+            self.cam_pct.setVisible(p.progress is not None and not p.complete)
             self.progress.setValue(int(p.progress or 0))
             if p.elapsed_time and p.progress:
                 remaining = p.elapsed_time * (100 - p.progress) / max(p.progress, 1)
