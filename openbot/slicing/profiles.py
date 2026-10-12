@@ -20,6 +20,32 @@ SUPPORT_STYLES = {
     "tree_hybrid": ("tree(auto)", "tree_hybrid"),
 }
 
+# Print speed presets. "fast" is for Klipper printers only: Marlin's planner and the stock
+# Ender board can't keep up, and only Klipper takes acceleration changes mid-print.
+SPEEDS = ("standard", "fast")
+SPEED_LABELS = {"standard": "Standard", "fast": "Fast (Klipper)"}
+
+# Fast preset for a stock Ender-3 class printer on Klipper (Bowden extruder, stock hotend,
+# no input shaper): roughly 1.5-2x the stock profile, inside Klipper's max_accel 3000 and
+# max_velocity 300. The filament's max volumetric speed (12 mm³/s for PLA) still caps
+# extrusion, so the stock hotend is never asked for more than it can melt.
+KLIPPER_FAST = {
+    "outer_wall_speed": "60", "inner_wall_speed": "90", "sparse_infill_speed": "120",
+    "internal_solid_infill_speed": "90", "top_surface_speed": "50",
+    "gap_infill_speed": "50", "support_speed": "60", "bridge_speed": "30",
+    "travel_speed": "200",
+    "default_acceleration": "2000", "outer_wall_acceleration": "1500",
+    "inner_wall_acceleration": "2000", "top_surface_acceleration": "1500",
+    "travel_acceleration": "3000", "initial_layer_acceleration": "500",
+    "machine_max_acceleration_x": ["3000", "3000"],
+    "machine_max_acceleration_y": ["3000", "3000"],
+    "machine_max_acceleration_extruding": ["3000", "3000"],
+    "machine_max_acceleration_travel": ["3000", "3000"],
+    "machine_max_speed_x": ["300", "300"], "machine_max_speed_y": ["300", "300"],
+}
+
+BED_MESH_GCODE = "BED_MESH_CALIBRATE ; probe the bed (added by OpenBot)"
+
 QUALITY_LABELS = {"fine": "Fine", "optimal": "Optimal", "standard": "Standard",
                   "draft": "Draft", "superdraft": "Super draft"}
 
@@ -41,6 +67,9 @@ class PrintSettings:
     adhesion: str = "none"              # none | brim | raft
     temperature: int | None = None      # nozzle override
     bed_temperature: int | None = None  # heated-bed override (Marlin printers)
+    klipper: bool = False               # the G-code is for a Klipper printer
+    speed: str = "standard"             # standard | fast (Klipper only)
+    bed_mesh: bool = False              # probe the bed before printing (Klipper + probe)
 
     @property
     def machine_def(self):
@@ -77,6 +106,11 @@ class PrintSettings:
         if self.temperature is not None and not 170 <= self.temperature <= m.max_nozzle_temp:
             raise SettingsError(f"nozzle temperature must be 170-{m.max_nozzle_temp} °C "
                                 f"on the {m.name}")
+        if self.speed not in SPEEDS:
+            raise SettingsError(f"speed must be one of {', '.join(SPEEDS)}")
+        if (self.speed == "fast" or self.bed_mesh) and not (self.klipper and
+                                                            m.output == "gcode"):
+            raise SettingsError("fast speed and bed probing need a Klipper printer")
         if self.bed_temperature is not None:
             if not m.heated_bed:
                 raise SettingsError(f"the {m.name} has no heated bed")
@@ -179,8 +213,43 @@ def orca_config(settings: PrintSettings):
         for k in list(cfg):
             if k.endswith("plate_temp") or k.endswith("plate_temp_initial_layer"):
                 cfg[k] = [str(bed)]
+    if s.klipper:
+        _klipper_overrides(cfg, s)
     _check_limits(cfg, m)
     return cfg
+
+
+def _klipper_overrides(cfg, s):
+    if s.speed == "fast":
+        cfg.update(KLIPPER_FAST)
+        # Klipper flavour: accelerations become SET_VELOCITY_LIMIT, which Klipper honours
+        # (with the Marlin flavour an M204 would pin it at the profile's 500 mm/s²).
+        cfg["gcode_flavor"] = "klipper"
+        cfg["accel_to_decel_enable"] = "0"      # Klipper 0.13 dropped ACCEL_TO_DECEL
+    cfg["exclude_object"] = "0"     # needs [exclude_object], which Mainsail doesn't add
+    if s.bed_mesh:
+        cfg["machine_start_gcode"] = add_bed_mesh(cfg.get("machine_start_gcode", ""))
+
+
+def add_bed_mesh(start_gcode):
+    """Probe after homing, once the bed is at temperature (the bed's shape changes as it
+    heats). If the start code heats the nozzle again afterwards (M109), hold it at 150 °C
+    while probing so it doesn't ooze onto the bed."""
+    lines = start_gcode.split("\n")
+
+    def find(prefix, start=0):
+        return next((i for i in range(start, len(lines))
+                     if lines[i].strip().upper().startswith(prefix)), None)
+    after = find("M190")
+    if after is None:
+        after = find("G28")
+    if after is None:
+        return BED_MESH_GCODE + "\n" + start_gcode
+    insert = [BED_MESH_GCODE]
+    if find("M109", after + 1) is not None:
+        insert.insert(0, "M104 S150 ; hold the nozzle below oozing temperature while probing")
+    lines[after + 1:after + 1] = insert
+    return "\n".join(lines)
 
 
 def _check_limits(cfg, m):

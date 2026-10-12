@@ -29,6 +29,8 @@ class Unsupported(Exception):
 CAMERA, NETWORK, FILAMENT, CERTIFICATE = "camera", "network", "filament", "certificate"
 SD_CARD, CONSOLE, HOME, EMERGENCY_STOP, HEATED_BED, FIRMWARE_RESTART = (
     "sd_card", "console", "home", "emergency_stop", "heated_bed", "firmware_restart")
+# The printer runs Klipper (enables Klipper-only slicing options) / has a bed probe.
+KLIPPER, BED_PROBE = "klipper", "bed_probe"
 
 # Minimum role for each operation. The server exposes exactly these names.
 REQUIRED_ROLE = {

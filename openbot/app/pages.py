@@ -21,7 +21,8 @@ from ..printer import PrinterError, discovery
 from ..printer.client import check_print_file, inspect_print_file
 from ..slicing import mesh as mesh_mod
 from ..slicing.plate import Plate
-from ..slicing.profiles import QUALITY, QUALITY_LABELS, SUPPORT_STYLES, PrintSettings
+from ..slicing.profiles import (QUALITY, QUALITY_LABELS, SPEED_LABELS, SUPPORT_STYLES,
+                                PrintSettings)
 from . import dialogs
 from .controller import orient
 from .viewer3d import PlateView
@@ -457,6 +458,25 @@ class PreparePage(Page):
         for a in ("none", "brim", "raft"):
             self.adhesion.addItem(a.title(), a)
         form.addRow("Adhesion:", self.adhesion)
+        # Klipper-only options, shown while a Klipper printer is connected.
+        self.speed = QComboBox()
+        for key, label in SPEED_LABELS.items():
+            self.speed.addItem(label, key)
+        self.speed.setToolTip("Fast uses Klipper's higher accelerations: about 1.5-2x the "
+                              "stock Ender speeds, still within the stock hotend's flow")
+        self.speed.setCurrentIndex(max(0, self.speed.findData(
+            QSettings().value("klipper_speed", "standard"))))
+        self.speed.currentIndexChanged.connect(
+            lambda: QSettings().setValue("klipper_speed", self.speed.currentData()))
+        form.addRow("Speed:", self.speed)
+        self.bed_mesh = QCheckBox("Probe the bed before printing (adds 2-3 min)")
+        self.bed_mesh.setToolTip("Runs BED_MESH_CALIBRATE once the bed is hot, so the first "
+                                 "layer follows the bed's current shape")
+        self.bed_mesh.setChecked(QSettings().value("klipper_bed_mesh", "true") == "true")
+        self.bed_mesh.toggled.connect(
+            lambda on: QSettings().setValue("klipper_bed_mesh", "true" if on else "false"))
+        form.addRow("Bed mesh:", self.bed_mesh)
+        self._form = form
         right.addWidget(box)
 
         self.slice_btn = QPushButton("Slice")
@@ -510,6 +530,7 @@ class PreparePage(Page):
         if state == "connected" and self.ctrl.machine_id:
             self.select_machine(self.ctrl.machine_id)
             self._auto_extruder_done = False
+        self._show_klipper_options()
         self._update_print_button()
 
     def _machine_changed(self):
@@ -526,6 +547,7 @@ class PreparePage(Page):
                 return
         self._machine_id = m.id
         self.plate.bed = m.bed
+        self._show_klipper_options()
         self.extruder.blockSignals(True)
         self.extruder.clear()
         for key, e in m.extruders.items():
@@ -598,9 +620,24 @@ class PreparePage(Page):
         else:
             self.extruder_note.setText("")
 
+    def _klipper_options(self):
+        """(klipper, probe) for the connected printer, if this plate is for it."""
+        klipper = (self.ctrl.connected and self.ctrl.supports(caps.KLIPPER) and
+                   self.machine_def.output == "gcode" and
+                   self.machine_def.id == self.ctrl.machine_id)
+        return klipper, klipper and self.ctrl.supports(caps.BED_PROBE)
+
+    def _show_klipper_options(self):
+        klipper, probe = self._klipper_options()
+        self._form.setRowVisible(self.speed, klipper)
+        self._form.setRowVisible(self.bed_mesh, probe)
+
     def settings(self):
         m = self.machine_def
+        klipper, probe = self._klipper_options()
         return PrintSettings(
+            klipper=klipper, speed=self.speed.currentData() if klipper else "standard",
+            bed_mesh=probe and self.bed_mesh.isChecked(),
             machine=m.id, extruder=self.extruder.currentData() or m.default_extruder,
             material=self.material.currentData(), quality=self.quality.currentData(),
             infill_percent=self.infill.value(), walls=self.walls.value(),
@@ -830,6 +867,7 @@ class PreparePage(Page):
         self._set_result(path, text, self.machine_def.id)
 
     def _set_result(self, path, text="", machine_id=None):
+        self.result_klipper = None       # sliced with Klipper-only options? (None = unknown)
         self.result_path = path
         self.result_machine = machine_id
         self.result.setText(text)
@@ -877,12 +915,17 @@ class PreparePage(Page):
             finally:
                 self.slice_btn.setEnabled(True)
                 self.slice_btn.setText("Slice")
-            text = (f"<b>Ready for the {m.name}:</b> about {_fmt_duration(r.duration_s)} · "
+            extras = [label for on, label in ((settings.speed == "fast", "fast"),
+                                              (settings.bed_mesh, "+ bed probing"))
+                      if on]
+            text = (f"<b>Ready for the {m.name}:</b> about {_fmt_duration(r.duration_s)}"
+                    f"{' (' + ' '.join(extras) + ')' if extras else ''} · "
                     f"{r.filament_g:.1f} g {settings.material_name} · {r.layers} layers "
                     f"(sliced in {time.monotonic() - t0:.0f} s)")
             if r.warnings:
                 text += "<br>" + "<br>".join(f"⚠️ {w}" for w in r.warnings[:5])
             self._set_result(out, text, m.id)
+            self.result_klipper = settings.speed == "fast" or settings.bed_mesh
         self.ctrl.run(go(), what="slicing")
 
     def _send_to_queue(self):
@@ -948,6 +991,12 @@ class PreparePage(Page):
             summary = (f"<b>{os.path.basename(path)}</b> on the {m.name}. OpenBot uploads it "
                        "to the Raspberry Pi, which runs the print, so this Mac can sleep. "
                        "The printer will heat and move.")
+        elif self.result_klipper:
+            problems = ["This file was sliced for a Klipper printer. This printer will skip "
+                        "its Klipper commands (speed changes, bed probing); slice again for "
+                        "the best result."]
+            summary = (f"<b>{os.path.basename(path)}</b> on the {m.name}. The printer will "
+                       "heat and move.")
         else:
             problems = ["This streams the print over USB: keep this Mac awake and the cable "
                         "connected until it finishes. For long prints, Save to SD Card is "

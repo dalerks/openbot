@@ -34,6 +34,7 @@ house, or run on a Raspberry Pi next to the printer.
 | Printing | Upload & print, pause/resume/cancel | Print over USB, save to an SD card (FAT32 check, safe names, eject), or upload to the Klipper Pi, which runs the print so your Mac can sleep; reprint files stored on the Pi |
 | Camera | Live view, snapshots, photo of each finished print | Klipper: the Pi's webcam, with Mainsail's flip/rotate settings |
 | Printer settings | Wi-Fi scan/join/forget, static IP/DHCP, rename | G-code console, preheat, home, emergency stop (Klipper: plus Restart Firmware) |
+| Klipper extras | – | **Fast** speed preset (Klipper accelerations, about 1.5–2× stock) and **probe the bed** (`BED_MESH_CALIBRATE`) before each print when the printer has a BLTouch or other probe |
 | Safety | Build-volume and temperature checks on every file | PTFE-safe temperature limits for the stock hotend (240 °C) |
 
 **Sharing (server mode):**

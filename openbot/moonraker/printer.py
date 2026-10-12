@@ -78,6 +78,7 @@ class MoonrakerPrinter:
         self._acknowledged = None   # (filename, state) the user dismissed
         self.info: PrinterInfo | None = None
         self.webcam = None
+        self.has_probe = False
         self.closed = False
 
     # ------------------------------------------------------------ lifecycle
@@ -109,6 +110,9 @@ class MoonrakerPrinter:
             source="moonraker", raw={"server": server, "printer": pinfo})
         if server.get("klippy_state") == "ready":
             await self._subscribe()
+            objects = (await self._get("/printer/objects/list")).get("objects", [])
+            self.has_probe = any(o in ("probe", "bltouch") or o.startswith("probe_eddy")
+                                 for o in objects)
         return self
 
     async def _login(self):

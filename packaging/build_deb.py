@@ -18,16 +18,16 @@ import time
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 LINUX = os.path.join(ROOT, "packaging", "linux")
 sys.path.insert(0, ROOT)
-from openbot import __version__  # noqa: E402
+from openbot import __version__, project  # noqa: E402
 
 CONTROL = f"""Package: openbot-server
 Version: {__version__}
 Architecture: all
-Maintainer: OpenBot <openbot@localhost>
+Maintainer: Lighthouse Consulting <jrounds@lighthouseconsult.com>
 Depends: python3 (>= 3.11), python3-venv, adduser
 Section: misc
 Priority: optional
-Homepage: https://example.invalid/openbot
+Homepage: {project.HOMEPAGE_URL}
 Description: OpenBot printer server
  Shares a MakerBot Replicator+ (network) or Creality Ender-3 (USB) with
  OpenBot apps on the local network: print queue, live camera, pairing with

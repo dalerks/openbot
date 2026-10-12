@@ -905,3 +905,14 @@ The owner's Ender-3 Pro now runs **Klipper** (v0.13), driven by a Raspberry Pi 4
 - **A real print.** OpenBot sliced a 20 × 20 × 2 mm square (Ender-3 Pro, PLA 205/60 °C, standard quality), uploaded it and started it in one call. Heating took about 2 min and printing 394 s; Klipper reported `complete`.
 - Orca's start G-code ran unmodified. Klipper ignores the Marlin-only `M201`/`M203`/`M205` and runs `M73`, `M204`, `M190`, `M109` and `G28` (the BLTouch homes Z through `safe_z_home`).
 - During that print, the Mac's network dropped for about 45 s, and Moonraker closed OpenBot's and Mainsail's websockets together (ping timeouts). The print carried on, because the Pi runs it. The app's reconnect loop covers this case.
+
+### 9.1 Klipper slicing options (2026-10-11)
+- **Speed: Fast (Klipper).** `KLIPPER_FAST` in `slicing/profiles.py` sets walls to 60/90 mm/s, infill to 120 mm/s and travel to 200 mm/s. Accelerations are 1500–3000 mm/s² (500 mm/s² on the first layer), and the G-code flavour is `klipper`, so accelerations go out as `SET_VELOCITY_LIMIT`.
+  - Why the flavour matters: the stock profile's `M204 P500` held the first test print at 500 mm/s². The filament's 12 mm³/s volumetric limit still caps extrusion.
+  - There's no input shaper on this printer yet, so the preset stays moderate.
+  - A 5-cube plate goes from 2 h 28 min to 1 h 30 min (Orca's estimate).
+- **Bed mesh.** `BED_MESH_CALIBRATE` is inserted into the start G-code after `M190`, so it runs with the bed hot. While probing, the nozzle is held at 150 °C, but only if an `M109` follows to heat it back up. This printer probes 5×5 points with 2 samples each and stows the probe between samples, which takes about 2–3 min.
+- Both options appear in Prepare only while a Klipper printer with that capability is connected (capabilities `klipper` and `bed_probe`).
+- The CLI has `--klipper --speed fast --bed-mesh`. A file sliced with these options and then printed on a Marlin printer gets a warning.
+- Mainsail's `[exclude_object]` isn't configured on this printer, so OpenBot turns off Orca's `exclude_object` labels.
+- **Not yet verified on the real printer:** a Fast print and a print with probing.

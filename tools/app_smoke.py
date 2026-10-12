@@ -239,7 +239,16 @@ async def klipper_scenario(win, ctrl, shot):
         assert monitor._last_image != raw
 
         prepare = win.pages["Prepare"]
-        assert prepare.result_path.endswith(".gcode")
+        assert prepare.speed.isVisibleTo(prepare) and prepare.bed_mesh.isVisibleTo(prepare)
+        prepare.speed.setCurrentIndex(prepare.speed.findData("fast"))
+        prepare.bed_mesh.setChecked(True)
+        prepare._slice()
+        await until(lambda: "fast" in prepare.result.text(), "Klipper slicing", timeout=300)
+        with open(prepare.result_path) as f:
+            gcode = f.read()
+        assert "BED_MESH_CALIBRATE" in gcode and "SET_VELOCITY_LIMIT" in gcode
+        print("Klipper slice:", prepare.result.text()[:120])
+        shot("Prepare", "prepare_klipper")
         prepare._print()
         name = os.path.basename(prepare.result_path)
         await until(lambda: ("start", name) in pi.actions, "upload + start on the Pi")
@@ -267,6 +276,8 @@ async def klipper_scenario(win, ctrl, shot):
         monitor.restart_fw.click()
         await until(lambda: ctrl.status.process is None, "firmware restart")
         await ctrl.disconnect()
+        assert not prepare.speed.isVisibleTo(prepare), "Klipper options still shown"
+        prepare.speed.setCurrentIndex(prepare.speed.findData("standard"))
     finally:
         await pi.stop()
 

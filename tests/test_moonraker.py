@@ -189,3 +189,38 @@ async def test_roles(klipper):
         await viewer.cancel()
     with pytest.raises(b.PermissionDenied):
         await MoonrakerBackend(klipper, role=b.Role.OPERATOR).send_gcode("G28")
+
+
+async def test_klipper_and_probe_capabilities(klipper):
+    caps = MoonrakerBackend(klipper).capabilities
+    assert b.KLIPPER in caps and b.BED_PROBE in caps
+
+
+def test_bed_mesh_goes_after_bed_heating():
+    from openbot.slicing.profiles import BED_MESH_GCODE, add_bed_mesh
+    start = "G90\nM104 S205\nM190 S60\nM109 S205\nG1 Z0.28"
+    lines = add_bed_mesh(start).split("\n")
+    assert lines[lines.index("M190 S60") + 2] == BED_MESH_GCODE
+    assert lines[lines.index("M190 S60") + 1].startswith("M104 S150")
+    assert lines.index(BED_MESH_GCODE) < lines.index("M109 S205")
+    # No later M109: never leave the nozzle cold.
+    lines = add_bed_mesh("G28\nM190 S60").split("\n")
+    assert lines == ["G28", "M190 S60", BED_MESH_GCODE]
+    assert add_bed_mesh("G28\nG1 Z5").split("\n")[1] == BED_MESH_GCODE
+
+
+def test_klipper_settings():
+    from openbot.slicing.profiles import PrintSettings, SettingsError, _klipper_overrides
+    with pytest.raises(SettingsError, match="Klipper"):
+        PrintSettings(machine="ender3_pro", speed="fast").validate()
+    with pytest.raises(SettingsError, match="Klipper"):
+        PrintSettings(machine="replicator_plus", klipper=True, bed_mesh=True).validate()
+    s = PrintSettings(machine="ender3_pro", klipper=True, speed="fast",
+                      bed_mesh=True).validate()
+    cfg = {"machine_start_gcode": "G28\nM190 S60\nM109 S200", "gcode_flavor": "marlin"}
+    _klipper_overrides(cfg, s)
+    assert cfg["gcode_flavor"] == "klipper" and cfg["default_acceleration"] == "2000"
+    assert "BED_MESH_CALIBRATE" in cfg["machine_start_gcode"]
+    cfg = {"gcode_flavor": "marlin"}
+    _klipper_overrides(cfg, PrintSettings(machine="ender3_pro", klipper=True).validate())
+    assert cfg["gcode_flavor"] == "marlin" and "default_acceleration" not in cfg

@@ -12,9 +12,11 @@ class MoonrakerBackend(b.PrinterBackend):
         self.role = role
         self.machine_id = printer.machine.id
         caps = {b.SD_CARD, b.CONSOLE, b.HOME, b.EMERGENCY_STOP, b.HEATED_BED,
-                b.FIRMWARE_RESTART}
+                b.FIRMWARE_RESTART, b.KLIPPER}
         if printer.webcam:
             caps.add(b.CAMERA)
+        if printer.has_probe:
+            caps.add(b.BED_PROBE)
         self.capabilities = frozenset(caps)
         self.camera_transform = printer.camera_transform
 

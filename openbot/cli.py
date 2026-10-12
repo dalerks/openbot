@@ -211,7 +211,10 @@ def _settings_from_args(args, default_extruder=None):
                              walls=args.walls, supports=args.supports,
                              support_style=args.support_style, adhesion=args.adhesion,
                              temperature=args.temp,
-                             bed_temperature=getattr(args, "bed_temp", None)).validate()
+                             bed_temperature=getattr(args, "bed_temp", None),
+                             klipper=getattr(args, "klipper", False),
+                             speed=getattr(args, "speed", "standard"),
+                             bed_mesh=getattr(args, "bed_mesh", False)).validate()
     except SettingsError as e:
         fail(str(e))
 
@@ -515,6 +518,12 @@ def _add_slice_options(p):
     p.add_argument("--support-style", choices=list(SUPPORT_STYLES), default="organic")
     p.add_argument("--adhesion", choices=["none", "brim", "raft"], default="none")
     p.add_argument("--temp", type=int, help="override nozzle temperature (°C)")
+    p.add_argument("--klipper", action="store_true",
+                   help="Ender: the printer runs Klipper (allows --speed fast, --bed-mesh)")
+    p.add_argument("--speed", choices=["standard", "fast"], default="standard",
+                   help="fast: Klipper accelerations, about 1.5-2x stock speed")
+    p.add_argument("--bed-mesh", action="store_true",
+                   help="Klipper with a probe: BED_MESH_CALIBRATE before printing")
 
 
 def build_parser():

@@ -52,6 +52,9 @@ class FakeMoonraker:
         r.add_post("/server/files/upload", self.h_upload)
         r.add_post("/printer/gcode/script", self.h_script)
         r.add_get("/printer/objects/query", self.h_query)
+        r.add_get("/printer/objects/list", self._const({"objects": [
+            "webhooks", "print_stats", "virtual_sdcard", "extruder", "heater_bed", "probe",
+            "bltouch", "bed_mesh"]}))
         for action in ("start", "pause", "resume", "cancel"):
             r.add_post(f"/printer/print/{action}", self._action(action))
         r.add_post("/printer/emergency_stop", self.h_estop)

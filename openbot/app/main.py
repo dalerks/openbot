@@ -198,12 +198,14 @@ def self_test():
     import keyring
     from .. import drives, machines  # noqa: F401
     from ..marlin import list_ports
+    from ..moonraker.backend import MoonrakerBackend  # noqa: F401
     from ..remote.client import RemoteBackend  # noqa: F401
     from ..server.app import OpenBotServer  # noqa: F401
     from ..slicing import orca_profiles, profiles
     from ..slicing.orca import SlicerError, find_orcaslicer
     list_ports()
     profiles.base_profile()
+    profiles.add_bed_mesh("G28\nM190 S60\nM109 S200")
     try:
         orca = find_orcaslicer()
         orca_profiles.resolve("Creality", "machine", "Creality Ender-3 Pro 0.4 nozzle")
