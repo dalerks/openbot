@@ -1,4 +1,5 @@
-"""Modal dialogs: certificate trust, identity change, pairing, Wi-Fi password, print confirm."""
+"""Modal dialogs: certificate trust, identity change, pairing, Wi-Fi password, Moonraker
+login, print confirm."""
 
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QFont, QPixmap
@@ -149,6 +150,34 @@ class WifiDialog(QDialog):
             self.password.setFocus()
             return
         self.accept()
+
+
+class LoginDialog(QDialog):
+    def __init__(self, title, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Log in")
+        lay = QFormLayout(self)
+        lay.addRow(QLabel(title))
+        self.user = QLineEdit()
+        lay.addRow("Username:", self.user)
+        self.pw = QLineEdit()
+        self.pw.setEchoMode(QLineEdit.EchoMode.Password)
+        lay.addRow("Password:", self.pw)
+        note = QLabel("A Moonraker user (as in Mainsail's login), not the Pi's own account. "
+                      "OpenBot keeps it only until you quit.")
+        note.setWordWrap(True)
+        lay.addRow(note)
+        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok |
+                                   QDialogButtonBox.StandardButton.Cancel)
+        buttons.accepted.connect(self.accept)
+        buttons.rejected.connect(self.reject)
+        lay.addRow(buttons)
+
+    def username(self):
+        return self.user.text().strip()
+
+    def password(self):
+        return self.pw.text()
 
 
 class ConfirmPrintDialog(QDialog):

@@ -12,6 +12,11 @@ bonjour = true               # let Macs find this server automatically
 # type = "ender3_pro"        # ender3, ender3_pro, ender3_v2, ender3_s1, ender3_v3_se
 # usb_port = "/dev/ttyUSB0"
 
+# A Klipper printer run by a Raspberry Pi with Mainsail or Fluidd (Moonraker). Use the
+# address you open Mainsail at; "localhost" when OpenBot runs on that same Pi.
+# type = "ender3_pro"
+# moonraker = "192.168.1.50"
+
 # MakerBot Replicator+ on the network. Trust + pair it once first:
 #   sudo openbot-server -p 192.168.1.154 pair      (then press the knob on the printer)
 # type = "replicator_plus"

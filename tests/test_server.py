@@ -203,6 +203,35 @@ async def test_usb_ender_behind_the_server(tmp_path, client_trust):
         fm.stop()
 
 
+async def test_klipper_behind_the_server(tmp_path, client_trust):
+    from fake_moonraker import FakeMoonraker
+    pi = await FakeMoonraker().start()
+    host = PrinterHost(moonraker=pi.address, machine_id="ender3_pro")
+    await host.start()
+    server = OpenBotServer(str(tmp_path / "srv3"), host, name="klipper-share")
+    await server.start("127.0.0.1", 0)
+    try:
+        await until(lambda: host.state == "connected")
+        ctx = await trusted_ctx(server, client_trust)
+        admin = await join(server, ctx, "Admin")
+        assert admin.machine_id == "ender3_pro" and "camera" in admin.capabilities
+        assert admin.storage_name == "Files on the printer's Raspberry Pi"
+        assert admin.camera_transform["flip_h"] is True
+        assert (await admin.snapshot()).data[:2] == b"\xff\xd8"
+        path = tmp_path / "cube.gcode"
+        path.write_text("G28\nG1 X10 Y10 Z0.2 F3000\nG1 X20 E1\n")
+        job = await admin.start_print(str(path))
+        await until(lambda: server.queue.get(job["id"]).state == "waiting_for_plate")
+        await admin.confirm_plate(job["id"])
+        await until(lambda: ("start", "cube.gcode") in pi.actions)
+        assert pi.files["cube.gcode"][0] == path.read_bytes()
+        await admin.close()
+    finally:
+        await server.stop()
+        await host.stop()
+        await pi.stop()
+
+
 def test_console_admin_keeps_setup_code(tmp_path):
     from openbot.server.auth import ClientStore
     store = ClientStore(str(tmp_path))
@@ -225,6 +254,11 @@ def test_server_config_file(tmp_path):
     load_config(str(cfg), args)
     assert (args.name, args.port, args.no_bonjour, args.usb, args.printer_type) == \
         ("garage-pi", 9000, True, "/dev/ttyUSB0", "ender3_pro")
+    cfg.write_text('[printer]\ntype = "ender3_pro"\nmoonraker = "192.168.1.50"\n')
+    args = argparse.Namespace(name=None, port=8765, bind="0.0.0.0", no_bonjour=False,
+                              data=None, printer=None, usb=None, moonraker=None,
+                              printer_type="ender3")
+    assert load_config(str(cfg), args).moonraker == "192.168.1.50"
     cfg.write_text('[printer]\ntype = "replicator_plus"\naddress = "192.168.1.154"\n')
     args = argparse.Namespace(name=None, port=8765, bind="0.0.0.0", no_bonjour=False,
                               data=None, printer=None, usb=None, printer_type="ender3")

@@ -243,6 +243,10 @@ def main(argv=None):
                 settings.value("last_server", ""):
             host, _, port = settings.value("last_server").rpartition(":")
             ctrl.run(ctrl.connect_server(host, int(port or 8765)), what="connect")
+        elif settings.value("last_kind") == "moonraker" and settings.value("last_moonraker"):
+            ctrl.run(ctrl.connect_moonraker(settings.value("last_moonraker"),
+                                            settings.value("last_moonraker_machine",
+                                                           "ender3_pro")), what="connect")
         elif settings.value("last_host", ""):
             ctrl.run(ctrl.connect_to(settings.value("last_host")), what="connect")
     closing = asyncio.Event()

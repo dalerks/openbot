@@ -869,3 +869,36 @@ Bug fixed along the way: modal dialogs opened from inside asyncio tasks could cr
 2. **Real prints:** an OpenBot-sliced file on the Replicator+, and the Ender-3 Pro over USB and SD (see §7).
 3. **A real Raspberry Pi:** flash Pi OS 64-bit, `sudo apt install ./openbot-server_0.1.0_all.deb`, edit `/etc/openbot/server.toml`.
 4. **Publishing** the apt repository and the DMG. These are outward-facing, so they're left for you to decide.
+
+## 9. Klipper printers through Moonraker (added 2026-10-11)
+
+The owner's Ender-3 Pro now runs **Klipper** (v0.13), driven by a Raspberry Pi 4
+("jnet3d") with Mainsail and Moonraker. It has a BLTouch, a saved `default` bed mesh,
+`safe_z_home`, and the stock Mainsail macros (`PAUSE`, `RESUME`, `CANCEL_PRINT`).
+
+**Protocol (Moonraker, verified on that Pi):**
+- **HTTP**, the same origin as Mainsail (nginx proxies to Moonraker):
+  - `/server/info`, `/printer/info` (hostname, Klipper version), `/server/webcams/list`
+  - `/server/files/list?root=gcodes`
+  - `POST /server/files/upload` (multipart: `file`, `root=gcodes`, `print=true`): upload and start in one call
+  - `/printer/print/{start,pause,resume,cancel}`, `/printer/gcode/script`, `/printer/emergency_stop`, `/printer/firmware_restart`
+- **Websocket** `/websocket` (JSON-RPC 2.0):
+  - Calls: `server.connection.identify`, then `printer.objects.subscribe` for `print_stats`, `virtual_sdcard`, `display_status`, `webhooks`, `extruder` and `heater_bed`.
+  - Push notifications: `notify_status_update` (partial updates, merged), `notify_gcode_response` (console lines) and `notify_klippy_{ready,shutdown,disconnected}`. On `ready`, OpenBot subscribes again.
+- **Auth:** `/access/info` reports `login_required: false, trusted: true` for the home LAN. If a login is required, OpenBot uses `POST /access/login` → bearer JWT, plus `/access/oneshot_token` for the websocket. The Pi's Linux account is *not* a Moonraker user ("Unregistered User").
+- **Camera:** crowsnest/mjpg-streamer at `/webcam/?action=stream|snapshot` (640×480 JPEG). The webcam entry says `flip_horizontal: true`, so the app, the server's web page and saved snapshots all mirror the image the same way Mainsail does.
+
+**Status mapping:**
+- `print_stats.state` `printing`/`paused`/`complete`/`cancelled`/`error` → Process steps `printing`/`suspended`/`completed`/`cancelled`/`failed`.
+- `printing` with `print_duration == 0` is shown as `heating`.
+- Progress comes from `virtual_sdcard.progress`.
+- `webhooks.state` `shutdown`/`error` is shown as a failed "Klipper" process with Klipper's message, and **Restart Firmware** brings Klipper back.
+
+**Code:**
+- `openbot/moonraker/` holds `MoonrakerPrinter` and `MoonrakerBackend`. The backend's capabilities are `camera` (if a webcam is set up), `sd_card` (files on the Pi), `console`, `home`, `emergency_stop`, `heated_bed` and `firmware_restart`.
+- App: **Printers → Klipper printers** (the address is remembered and reconnected at start-up, with automatic reconnect).
+- Server: `openbot serve --moonraker ADDRESS` or `[printer] moonraker = "…"`.
+- Tests: `tests/fake_moonraker.py` and `tests/test_moonraker.py`, plus a server test and a smoke-test scenario.
+
+**Verified against the real Pi (read-only):** connect, live temperatures, file list, live camera and snapshot, console (`STATUS`, `M115`).
+**Not yet verified:** a real upload-and-print from OpenBot, and OpenBot's Orca start G-code on Klipper. Klipper runs Orca's `M190`/`M109`/`G28` start code as is; `G28` homes Z with the BLTouch through `safe_z_home`, and Klipper loads the `default` mesh at start-up.

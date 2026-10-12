@@ -173,6 +173,8 @@ class RemoteBackend(b.PrinterBackend):
         # Certificate tools manage the server's own trust of its printer: not remote.
         self.capabilities = (frozenset(p.get("capabilities", [])) - {"certificate"}) | {QUEUE}
         self.machine_id = p.get("machine", "")
+        self.storage_name = p.get("storage_name") or b.PrinterBackend.storage_name
+        self.camera_transform = p.get("camera_transform")
         self.info = PrinterInfo(serial=f"server:{self.host}:{self.port}",
                                 name=p.get("name") or "Printer", ip=self.host,
                                 machine_type="remote", bot_type=self.machine_id,

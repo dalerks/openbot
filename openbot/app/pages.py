@@ -1,6 +1,7 @@
 """The app's pages: Printers, Prepare, Monitor, Network, Maintenance."""
 
 import asyncio
+import html
 import os
 import time
 
@@ -22,6 +23,7 @@ from ..slicing import mesh as mesh_mod
 from ..slicing.plate import Plate
 from ..slicing.profiles import QUALITY, QUALITY_LABELS, SUPPORT_STYLES, PrintSettings
 from . import dialogs
+from .controller import orient
 from .viewer3d import PlateView
 
 IPV4 = r"^((25[0-5]|2[0-4]\d|1?\d?\d)\.){3}(25[0-5]|2[0-4]\d|1?\d?\d)$"
@@ -149,6 +151,26 @@ class PrintersPage(Page):
         ul.addWidget(note, 2, 0, 1, 3)
         lay.addWidget(usb)
 
+        kl = QGroupBox("Klipper printers (Mainsail or Fluidd on a Raspberry Pi)")
+        kg = QGridLayout(kl)
+        self.mr_addr = QLineEdit(self.settings.value("last_moonraker", ""))
+        self.mr_addr.setPlaceholderText("the address you open Mainsail at, e.g. 192.168.1.50")
+        self.mr_addr.returnPressed.connect(lambda: self._connect_moonraker())
+        kg.addWidget(QLabel("Address:"), 0, 0)
+        kg.addWidget(self.mr_addr, 0, 1)
+        self.mr_machine = QComboBox()
+        for m in machines.MACHINES.values():
+            if m.output == "gcode":
+                self.mr_machine.addItem(m.name, m.id)
+        last_mr = self.settings.value("last_moonraker_machine", "ender3_pro")
+        self.mr_machine.setCurrentIndex(max(0, self.mr_machine.findData(last_mr)))
+        kg.addWidget(QLabel("Printer:"), 1, 0)
+        kg.addWidget(self.mr_machine, 1, 1)
+        mr_btn = QPushButton("Connect")
+        mr_btn.clicked.connect(lambda: self._connect_moonraker())
+        kg.addWidget(mr_btn, 1, 2)
+        lay.addWidget(kl)
+
         srv = QGroupBox("OpenBot servers (a printer shared by another Mac or a Raspberry Pi)")
         sl = QGridLayout(srv)
         self.servers = QListWidget()
@@ -214,6 +236,30 @@ class PrintersPage(Page):
         self.settings.setValue("last_usb_machine", machine_id)
         self.ctrl.run(self.ctrl.connect_usb(port, machine_id), what="USB connect")
 
+    def _connect_moonraker(self, username=None, password=None):
+        address = self.mr_addr.text().strip()
+        if not address:
+            QMessageBox.information(self, "Klipper", "Enter the address you use to open "
+                                                     "Mainsail or Fluidd.")
+            return
+        machine_id = self.mr_machine.currentData()
+        self.settings.setValue("last_moonraker", address)
+        self.settings.setValue("last_moonraker_machine", machine_id)
+
+        async def go():
+            err = await self.ctrl.connect_moonraker(address, machine_id, username, password)
+            if err and "username and password" in err and username is None:
+                later(lambda: self._ask_login(address))
+            elif err:
+                later(lambda: QMessageBox.warning(self, "Klipper", err))
+        self.ctrl.run(go(), what="connecting to Klipper")
+
+    def _ask_login(self, address):
+        """Shown when Moonraker requires a login (most Pis trust the home network and don't)."""
+        dlg = dialogs.LoginDialog(f"Moonraker at {address} needs a login.", self)
+        if dlg.exec() == dlg.DialogCode.Accepted:
+            self._connect_moonraker(dlg.username(), dlg.password())
+
     def _on_connection(self, state, message):
         icon = {"connected": "🟢", "connecting": "🟡", "reconnecting": "🟠"}.get(state, "⚪️")
         self.state.setText(f"{icon} {message}")
@@ -222,6 +268,8 @@ class PrintersPage(Page):
             if self.ctrl.remote:
                 self.settings.setValue("last_server", self.ctrl.host)
                 self.settings.setValue("last_kind", "server")
+            elif self.ctrl.moonraker:
+                self.settings.setValue("last_kind", "moonraker")
             elif not self.ctrl.usb_port:
                 self.settings.setValue("last_host", self.ctrl.host)
                 self.settings.setValue("last_kind", "printer")
@@ -895,6 +943,11 @@ class PreparePage(Page):
                        f"at {meta.get('extruder_temperature')} °C, about "
                        f"{_fmt_duration(meta.get('duration_s') or 0)}. The printer will heat "
                        "and move.")
+        elif self.ctrl.moonraker:
+            problems = []
+            summary = (f"<b>{os.path.basename(path)}</b> on the {m.name}. OpenBot uploads it "
+                       "to the Raspberry Pi, which runs the print, so this Mac can sleep. "
+                       "The printer will heat and move.")
         else:
             problems = ["This streams the print over USB: keep this Mac awake and the cable "
                         "connected until it finishes. For long prints, Save to SD Card is "
@@ -907,7 +960,8 @@ class PreparePage(Page):
             async def photo():
                 try:
                     frame = await self.ctrl.snapshot()
-                    dlg.set_photo(QImage.fromData(frame.data))
+                    dlg.set_photo(orient(QImage.fromData(frame.data),
+                                         self.ctrl.backend.camera_transform))
                 except Exception:  # noqa: BLE001
                     dlg.photo.setText("(camera unavailable)")
             task = self.ctrl.run(photo(), what="camera")
@@ -918,7 +972,7 @@ class PreparePage(Page):
             if task:
                 task.cancel()
             return
-        self.upload.setVisible(m.output == "makerbot")
+        self.upload.setVisible(m.output == "makerbot" or bool(self.ctrl.moonraker))
         self.upload.setValue(0)
 
         async def go():
@@ -976,6 +1030,12 @@ class MonitorPage(Page):
         self.estop.setStyleSheet("QPushButton { color: #c62828; font-weight: bold; }")
         self.estop.clicked.connect(self._emergency_stop)
         left.addWidget(self.estop)
+        self.restart_fw = QPushButton("Restart Firmware")
+        self.restart_fw.setToolTip("FIRMWARE_RESTART: brings Klipper back after an emergency "
+                                   "stop or an error")
+        self.restart_fw.clicked.connect(
+            lambda: ctrl.run(ctrl.backend.restart_firmware(), what="firmware restart"))
+        left.addWidget(self.restart_fw)
 
         self.sd_box = QGroupBox("Printer's SD card")
         sdl = QVBoxLayout(self.sd_box)
@@ -1018,6 +1078,7 @@ class MonitorPage(Page):
         lay.addWidget(self.camera_panel, 3)
 
         self._sd_files = []
+        self._sd_refreshed_for = None
         self._last_image = None
         ctrl.status_changed.connect(self._status)
         ctrl.camera_frame.connect(self._frame)
@@ -1030,6 +1091,10 @@ class MonitorPage(Page):
         self.camera_panel.setVisible(not connected or self.ctrl.supports(caps.CAMERA))
         self.sd_box.setVisible(connected and self.ctrl.supports(caps.SD_CARD))
         self.estop.setVisible(connected and self.ctrl.supports(caps.EMERGENCY_STOP))
+        self.restart_fw.setVisible(connected and self.ctrl.supports(caps.FIRMWARE_RESTART))
+        self._sd_refreshed_for = None
+        if connected:
+            self.sd_box.setTitle(self.ctrl.backend.storage_name)
         heated = connected and self.ctrl.supports(caps.HEATED_BED)
         for w in self._rows["Bed"]:
             w.setVisible(heated)
@@ -1060,7 +1125,9 @@ class MonitorPage(Page):
             what = ("Printing" if p.is_print else "Printing from SD" if p.name == "SDPrint"
                     else p.name)
             pct = f" · {p.progress:.0f}%" if p.progress is not None else ""
-            self.process.setText(f"<h3>{what}: {step}{pct}</h3>")
+            err = (p.error or {}).get("message") if p.step == "failed" else None
+            self.process.setText(f"<h3>{what}: {step}{pct}</h3>" +
+                                 (f"<p>{html.escape(err.strip())}</p>" if err else ""))
             self.cam_pct.setText(f"{p.progress:.0f}%" if p.progress is not None else "")
             self.cam_pct.adjustSize()
             self.cam_pct.setVisible(p.progress is not None and not p.complete)
@@ -1069,7 +1136,12 @@ class MonitorPage(Page):
                 remaining = p.elapsed_time * (100 - p.progress) / max(p.progress, 1)
                 self.times.setText(f"Elapsed {_fmt_duration(p.elapsed_time)} · about "
                                    f"{_fmt_duration(remaining)} left")
-        busy = p is not None and not p.complete
+        busy = p is not None and not p.complete and p.step != "failed"
+        if (p and p.filename and p.filename != self._sd_refreshed_for and
+                self.ctrl.supports(caps.SD_CARD) and
+                p.filename not in {f["name"] for f in self._sd_files}):
+            self._sd_refreshed_for = p.filename      # a new upload: show it in the list
+            self._sd_refresh()
         self.pause.setEnabled(busy and (p.is_print or p.name == "SDPrint"))
         self.sd_print.setEnabled(not busy)
         self.pause.setText("Resume" if p and p.step == "suspended" else "Pause")
@@ -1085,7 +1157,7 @@ class MonitorPage(Page):
                 self.sd_list.addItem(f"{f['display']}  ({f['size'] / 1e6:.1f} MB)")
             if not self._sd_files:
                 self.sd_list.addItem("(no files, or no card in the printer)")
-        self.ctrl.run(go(), what="reading the printer's SD card")
+        self.ctrl.run(go(), what=f"reading {self.ctrl.backend.storage_name.lower()}")
 
     def _sd_print(self):
         i = self.sd_list.currentRow()
@@ -1093,18 +1165,20 @@ class MonitorPage(Page):
             return
         f = self._sd_files[i]
         if QMessageBox.question(
-                self, "Print from SD card",
-                f"Start {f['display']} from the printer's SD card? The printer will heat "
-                "and move; make sure the build plate is clear.") != \
+                self, "Print a stored file",
+                f"Start {f['display']} ({self.ctrl.backend.storage_name.lower()})? The "
+                "printer will heat and move; make sure the build plate is clear.") != \
                 QMessageBox.StandardButton.Yes:
             return
         self.ctrl.run(self.ctrl.backend.sd_print(f["name"]), what="SD print")
 
     def _emergency_stop(self):
+        after = ("Click Restart Firmware afterwards to use it again." if
+                 self.ctrl.supports(caps.FIRMWARE_RESTART) else
+                 "The printer must be switched off and on again before it can be used.")
         if QMessageBox.warning(
                 self, "Emergency stop",
-                "Halt the printer immediately? Heaters and motors stop, and the printer must "
-                "be switched off and on again before it can be used.",
+                f"Halt the printer immediately? Heaters and motors stop. {after}",
                 QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No) == \
                 QMessageBox.StandardButton.Yes:
             self.ctrl.run(self.ctrl.backend.emergency_stop(), what="emergency stop")
@@ -1144,7 +1218,12 @@ class MonitorPage(Page):
     def _save_snapshot(self, frame):
         path, _ = QFileDialog.getSaveFileName(
             self, "Save snapshot", time.strftime("plate-%Y%m%d-%H%M%S.jpg"), "JPEG (*.jpg)")
-        if path:
+        if not path:
+            return
+        transform = self.ctrl.backend.camera_transform if self.ctrl.backend else None
+        if transform and frame.is_jpeg:          # save it the way the camera view shows it
+            orient(QImage.fromData(frame.data), transform).save(path, "JPEG", 92)
+        else:
             with open(path, "wb") as f:
                 f.write(frame.data)
 

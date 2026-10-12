@@ -222,6 +222,9 @@ function showPrinter(p) {
   s.className = "pill " + (p.connected ? "ok" : "off");
   const camera = (p.capabilities || []).includes("camera");
   $("camera-card").hidden = !camera;
+  const t = p.camera_transform || {};
+  $("camera").style.transform = [t.flip_h ? "scaleX(-1)" : "", t.flip_v ? "scaleY(-1)" : "",
+                                 t.rotation ? `rotate(${t.rotation}deg)` : ""].join(" ");
   const ext = p.machine === "replicator_plus" ? ".makerbot" : ".gcode,.gco,.g";
   $("upload-file").accept = ext;
 }

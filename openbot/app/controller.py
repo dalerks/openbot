@@ -49,6 +49,7 @@ class PrinterController(QObject):
         self.backend: LocalBackend | None = None
         self.host = None
         self.usb_port = None
+        self.moonraker = None        # (address, machine_id, username, password) when used
         self.status = None
         self._camera_task = None
         self._reconnect_task = None
@@ -168,6 +169,37 @@ class PrinterController(QObject):
         printer.conn.on_line(self.console_line.emit)
         await self._attached(printer, MarlinBackend(printer),
                              f"{printer.info.name} · USB · {printer.info.firmware}")
+
+    async def connect_moonraker(self, address, machine_id, username=None, password=None):
+        """Connect a Klipper printer through Moonraker (a Pi running Mainsail/Fluidd).
+
+        Returns None when connected, otherwise the error message."""
+        await self.disconnect()
+        self._closing = False
+        self.host, self.usb_port = address, None
+        self.moonraker = (address, machine_id, username, password)
+        self.connection_changed.emit("connecting", f"Connecting to {address}…")
+        try:
+            printer, backend = await self._open_moonraker()
+        except PrinterError as e:
+            self.moonraker = None
+            self.connection_changed.emit("disconnected", str(e))
+            return str(e)
+        await self._attached(printer, backend, self._moonraker_label(printer))
+        return None
+
+    async def _open_moonraker(self):
+        from ..moonraker import MoonrakerPrinter
+        from ..moonraker.backend import MoonrakerBackend
+        address, machine_id, username, password = self.moonraker
+        printer = MoonrakerPrinter(address, machine_id, username=username, password=password)
+        await printer.connect()
+        printer.on_line(self.console_line.emit)
+        return printer, MoonrakerBackend(printer)
+
+    @staticmethod
+    def _moonraker_label(printer):
+        return f"{printer.info.name} · {printer.host} · {printer.info.firmware} (Moonraker)"
 
     # ------------------------------------------------------------ OpenBot servers
 
@@ -291,16 +323,20 @@ class PrinterController(QObject):
         delay = 2
         while not self._closing:
             await asyncio.sleep(delay)
-            printer = self._new_printer(self.host)
             try:
-                await printer.connect()
+                if self.moonraker:
+                    printer, backend = await self._open_moonraker()
+                else:
+                    printer, backend = self._new_printer(self.host), None
+                    await printer.connect()
             except (NotTrusted, CertificateChanged, AuthError) as e:
                 self.connection_changed.emit("disconnected", str(e))
                 return
             except PrinterError:
                 delay = min(delay * 2, 30)
                 continue
-            await self._attached(printer)
+            await self._attached(printer, backend,
+                                 self._moonraker_label(printer) if self.moonraker else None)
             return
 
     async def disconnect(self):
@@ -313,6 +349,7 @@ class PrinterController(QObject):
         self.printer = None
         self.backend = None
         self.usb_port = None
+        self.moonraker = None
         self._server_addr = None
         self.connection_changed.emit("disconnected", "Not connected")
 
@@ -328,10 +365,11 @@ class PrinterController(QObject):
 
     async def _camera_loop(self):
         try:
+            transform = self.backend.camera_transform
             async for frame in self.backend.camera_stream():
                 img = QImage.fromData(frame.data) if frame.is_jpeg else _yuyv_to_qimage(frame)
                 if not img.isNull():
-                    self.camera_frame.emit(img)
+                    self.camera_frame.emit(orient(img, transform))
         except asyncio.CancelledError:
             raise
         except PrinterError as e:
@@ -349,6 +387,18 @@ class PrinterController(QObject):
     async def snapshot(self):
         frame = await self.backend.snapshot()
         return frame
+
+
+def orient(img, transform):
+    """Apply a camera's flip/rotation settings (as configured in Mainsail)."""
+    if not transform:
+        return img
+    if transform.get("flip_h") or transform.get("flip_v"):
+        img = img.mirrored(bool(transform.get("flip_h")), bool(transform.get("flip_v")))
+    if transform.get("rotation"):
+        from PySide6.QtGui import QTransform
+        img = img.transformed(QTransform().rotate(transform["rotation"]))
+    return img
 
 
 def _yuyv_to_qimage(frame):

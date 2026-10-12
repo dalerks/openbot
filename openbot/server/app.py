@@ -133,7 +133,8 @@ class OpenBotServer:
         return {"connected": True, "machine": b.machine_id,
                 "name": getattr(getattr(b, "printer", None), "info", None) and
                 b.printer.info.name or (m.name if m else ""),
-                "capabilities": sorted(b.capabilities)}
+                "capabilities": sorted(b.capabilities),
+                "storage_name": b.storage_name, "camera_transform": b.camera_transform}
 
     def _scoped_backend(self, client):
         b = self.host.backend

@@ -46,7 +46,7 @@ def load_config(path, args):
 
     [server]  name, port, bind, bonjour, data
     [printer] type = "replicator_plus" | "ender3_pro" | ...,  address = "IP" (MakerBot)
-              or usb_port = "/dev/ttyUSB0" (Marlin)
+              or usb_port = "/dev/ttyUSB0" (Marlin) or moonraker = "IP" (Klipper)
     """
     import tomllib
     with open(path, "rb") as f:
@@ -65,6 +65,7 @@ def load_config(path, args):
         args.printer = args.printer or prn.get("address")
     else:
         args.usb = args.usb or prn.get("usb_port")
+        args.moonraker = getattr(args, "moonraker", None) or prn.get("moonraker")
         if ptype:
             args.printer_type = ptype
     return args
@@ -76,10 +77,12 @@ async def serve(args):
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
     if args.config:
         load_config(args.config, args)
-    if not args.printer and not args.usb:
-        sys.exit("give the printer: --printer IP (MakerBot) or --usb PORT (Ender), or set "
-                 "it in the config file ([printer] address / usb_port)")
-    host = PrinterHost(host=args.printer, usb_port=args.usb, machine_id=args.printer_type)
+    if not args.printer and not args.usb and not args.moonraker:
+        sys.exit("give the printer: --printer IP (MakerBot), --usb PORT (Ender) or "
+                 "--moonraker ADDRESS (Klipper), or set it in the config file ([printer] "
+                 "address / usb_port / moonraker)")
+    host = PrinterHost(host=args.printer, usb_port=args.usb, moonraker=args.moonraker,
+                       machine_id=args.printer_type)
     server = OpenBotServer(args.data or default_data_dir(), host, name=args.name)
     had_admin = server.clients.has_admin()
     setup_code = server.clients.setup_code
@@ -160,9 +163,11 @@ def add_commands(sub):
     sv = sub.add_parser("serve", help="share a printer with other OpenBot apps (headless)")
     sv.add_argument("--printer", help="MakerBot printer IP (trust + pair it first)")
     sv.add_argument("--usb", help="USB serial port of a Marlin printer (Ender-3)")
+    sv.add_argument("--moonraker", help="address of a Klipper printer's Moonraker/Mainsail "
+                                        "(e.g. 192.168.1.50)")
     sv.add_argument("--printer-type", default="ender3_pro",
                     choices=[m for m in machines.MACHINES if m != "replicator_plus"],
-                    help="for --usb (default ender3_pro)")
+                    help="for --usb or --moonraker (default ender3_pro)")
     sv.add_argument("--port", type=int, default=DEFAULT_PORT)
     sv.add_argument("--bind", default="0.0.0.0")
     sv.add_argument("--name", help="server name shown to clients (default: host name)")

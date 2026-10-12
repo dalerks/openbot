@@ -22,6 +22,7 @@ from PySide6.QtWidgets import QApplication, QFileDialog, QMessageBox  # noqa: E4
 
 import qasync  # noqa: E402
 from fake_marlin import FakeMarlin  # noqa: E402
+from fake_moonraker import CAMERA_JPEG, FakeMoonraker  # noqa: E402
 from fake_printer import FakePrinter  # noqa: E402
 from openbot import drives  # noqa: E402
 from openbot.app import dialogs  # noqa: E402
@@ -142,6 +143,7 @@ async def scenario(win, ctrl):
     await fake.stop()
     if MODEL:
         await ender_scenario(win, ctrl, shot)
+        await klipper_scenario(win, ctrl, shot)
         await share_scenario(win, ctrl, shot)
     real_errors = [e for e in errors if "camera" not in e]
     if real_errors:
@@ -205,6 +207,68 @@ async def ender_scenario(win, ctrl, shot):
         await ctrl.disconnect()
     finally:
         marlin.stop()
+
+
+async def klipper_scenario(win, ctrl, shot):
+    """Ender-3 Pro on a Klipper/Mainsail Pi: connect, camera, upload + print, files, console,
+    emergency stop and firmware restart. Reuses the G-code sliced by ender_scenario."""
+    pi = await FakeMoonraker(jpeg=CAMERA_JPEG).start()
+    ctrl.error.connect(lambda e: print("KLIPPER ERROR:", e))
+    try:
+        printers = win.pages["Printers"]
+        printers.mr_addr.setText(pi.address)
+        printers.mr_machine.setCurrentIndex(printers.mr_machine.findData("ender3_pro"))
+        printers._connect_moonraker()
+        await until(lambda: ctrl.connected and ctrl.moonraker, "Moonraker connect")
+        visible = [win.nav.item(i).text() for i in range(win.nav.count())
+                   if not win.nav.item(i).isHidden()]
+        print("Klipper connected:", printers.state.text(), "| pages:", visible)
+        assert "Console" in visible and "Network" not in visible, visible
+
+        monitor = win.pages["Monitor"]
+        assert monitor.camera_panel.isVisibleTo(monitor) and monitor.restart_fw.isVisibleTo(monitor)
+        assert monitor.sd_box.title() == "Files on the printer's Raspberry Pi"
+        monitor._last_image = None
+        monitor._toggle_camera()
+        await until(lambda: monitor._last_image is not None, "Klipper camera frame")
+        await ctrl.stop_camera()
+        monitor.cam_btn.setText("Start Camera")
+        from PySide6.QtGui import QImage
+        raw = QImage.fromData(CAMERA_JPEG)
+        assert monitor._last_image == raw.mirrored(True, False), "camera not mirrored"
+        assert monitor._last_image != raw
+
+        prepare = win.pages["Prepare"]
+        assert prepare.result_path.endswith(".gcode")
+        prepare._print()
+        name = os.path.basename(prepare.result_path)
+        await until(lambda: ("start", name) in pi.actions, "upload + start on the Pi")
+        await until(lambda: ctrl.status and ctrl.status.process, "Klipper print status")
+        pi.update(print_stats={"print_duration": 30.0, "total_duration": 90.0},
+                  virtual_sdcard={"progress": 0.4})
+        await until(lambda: ctrl.status.process.progress == 40.0, "Klipper progress")
+        await until(lambda: monitor.sd_list.count() > 1, "files on the Pi")
+        print("Klipper printing:", ctrl.status.process.step, ctrl.status.process.progress,
+              "% | files:", [monitor.sd_list.item(i).text() for i in
+                             range(monitor.sd_list.count())])
+        shot("Monitor", "monitor_klipper")
+        await ctrl.backend.cancel()
+
+        console = win.pages["Console"]
+        console.log.clear()
+        console.cmd.setText("STATUS")
+        console._send()
+        await until(lambda: "ran STATUS" in console.log.toPlainText(), "Klipper console")
+        shot("Console", "console_klipper")
+
+        await ctrl.backend.emergency_stop()
+        await until(lambda: ctrl.status.process and ctrl.status.process.step == "failed",
+                    "Klipper shutdown shown")
+        monitor.restart_fw.click()
+        await until(lambda: ctrl.status.process is None, "firmware restart")
+        await ctrl.disconnect()
+    finally:
+        await pi.stop()
 
 
 async def share_scenario(win, ctrl, shot):

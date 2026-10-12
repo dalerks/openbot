@@ -20,7 +20,8 @@
 MakerBot has ended support for MakerBot Print and MakerBot Desktop on the Replicator+.
 OpenBot replaces them. It slices your models, sends them to the printer over the network,
 shows the printer's camera, and changes its Wi-Fi settings. It also drives Creality Ender-3
-printers over USB or by SD card, and can share any of these printers with every Mac in the
+printers over USB, by SD card, or through a Raspberry Pi running Klipper with Mainsail or
+Fluidd, and can share any of these printers with every Mac in the
 house, or run on a Raspberry Pi next to the printer.
 
 ## What it does
@@ -29,10 +30,10 @@ house, or run on a Raspberry Pi next to the printer.
 |---|---|---|
 | Slicing | STL/OBJ → `.makerbot`, with the bundled OrcaSlicer engine | STL/OBJ → G-code, using Creality's own OrcaSlicer profiles |
 | Build plate | Several objects: move (drag in 3D), rotate, scale, duplicate, auto-arrange | same |
-| Connection | Network (encrypted, pinned certificate, one-time knob-press pairing) | USB (Marlin, checksummed lines with automatic resend) |
-| Printing | Upload & print, pause/resume/cancel | Print over USB, or save to an SD card (FAT32 check, safe names, eject) |
-| Camera | Live view, snapshots, photo of each finished print | – |
-| Printer settings | Wi-Fi scan/join/forget, static IP/DHCP, rename | G-code console, preheat, home, emergency stop |
+| Connection | Network (encrypted, pinned certificate, one-time knob-press pairing) | USB (Marlin, checksummed lines with automatic resend), or the network through Klipper's Moonraker (the Pi that runs Mainsail/Fluidd) |
+| Printing | Upload & print, pause/resume/cancel | Print over USB, save to an SD card (FAT32 check, safe names, eject), or upload to the Klipper Pi, which runs the print so your Mac can sleep; reprint files stored on the Pi |
+| Camera | Live view, snapshots, photo of each finished print | Klipper: the Pi's webcam, with Mainsail's flip/rotate settings |
+| Printer settings | Wi-Fi scan/join/forget, static IP/DHCP, rename | G-code console, preheat, home, emergency stop (Klipper: plus Restart Firmware) |
 | Safety | Build-volume and temperature checks on every file | PTFE-safe temperature limits for the stock hotend (240 °C) |
 
 **Sharing (server mode):**
@@ -70,6 +71,7 @@ sudo openbot-server server clients
 
 1. **Replicator+:** Printers → Find Printers → Connect. Trust the printer's certificate, then press the knob on the printer once to pair.
 2. **Ender-3:** plug in USB, then Printers → USB printers → Refresh → Connect USB. Or slice and use **Save to SD Card…**.
+   **Ender-3 on Klipper:** Printers → Klipper printers → enter the address you open Mainsail at → Connect. OpenBot uses Moonraker's API, and asks for a login only if your Moonraker requires one.
 3. **Prepare:** Add Models → pick printer, material and quality → Slice → Print.
 
 ## Building from source

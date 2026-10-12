@@ -11,13 +11,14 @@ log = logging.getLogger(__name__)
 class PrinterHost:
     """Owns the printer connection for a headless server (`openbot serve`).
 
-    For a network printer it reconnects with backoff; a USB printer is opened
-    once (reopening can reset the board, see MarlinPrinter).
+    For a network printer (MakerBot or Moonraker) it reconnects with backoff; a USB
+    printer is opened once (reopening can reset the board, see MarlinPrinter).
     """
 
-    def __init__(self, *, host=None, usb_port=None, machine_id=None, trust=None,
-                 credentials=None):
+    def __init__(self, *, host=None, usb_port=None, moonraker=None, machine_id=None,
+                 trust=None, credentials=None):
         self._net_host, self._usb_port, self._machine_id = host, usb_port, machine_id
+        self._moonraker = moonraker
         self._trust, self._credentials = trust, credentials
         self.backend = None
         self._status_cbs, self._conn_cbs = [], []
@@ -89,6 +90,12 @@ class PrinterHost:
             printer = MarlinPrinter(self._usb_port, self._machine_id or "ender3_pro")
             await printer.connect()
             backend = MarlinBackend(printer)
+        elif self._moonraker:
+            from ..moonraker import MoonrakerPrinter
+            from ..moonraker.backend import MoonrakerBackend
+            printer = MoonrakerPrinter(self._moonraker, self._machine_id or "ender3_pro")
+            await printer.connect()
+            backend = MoonrakerBackend(printer)
         else:
             from ..local_backend import LocalBackend
             kwargs = {}

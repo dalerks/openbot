@@ -1,7 +1,8 @@
 """The one interface the UI and CLI talk to (PLAN.md §3).
 
 Backends: LocalBackend (MakerBot over the network), MarlinBackend (Ender-3 over
-USB), and later RemoteBackend (an OpenBot server). Each declares `capabilities`
+USB), MoonrakerBackend (a Klipper printer run by a Raspberry Pi with Mainsail), and
+RemoteBackend (an OpenBot server). Each declares `capabilities`
 so the UI only offers what the printer can do; operations a printer lacks raise
 Unsupported. Role checks live here so every path enforces them identically.
 """
@@ -26,8 +27,8 @@ class Unsupported(Exception):
 
 # Capability names used by the UI.
 CAMERA, NETWORK, FILAMENT, CERTIFICATE = "camera", "network", "filament", "certificate"
-SD_CARD, CONSOLE, HOME, EMERGENCY_STOP, HEATED_BED = (
-    "sd_card", "console", "home", "emergency_stop", "heated_bed")
+SD_CARD, CONSOLE, HOME, EMERGENCY_STOP, HEATED_BED, FIRMWARE_RESTART = (
+    "sd_card", "console", "home", "emergency_stop", "heated_bed", "firmware_restart")
 
 # Minimum role for each operation. The server exposes exactly these names.
 REQUIRED_ROLE = {
@@ -48,6 +49,7 @@ REQUIRED_ROLE = {
     "home": Role.OPERATOR,
     "motors_off": Role.OPERATOR,
     "emergency_stop": Role.OPERATOR,
+    "restart_firmware": Role.OPERATOR,
     "sd_list": Role.VIEWER,
     "sd_print": Role.OPERATOR,
     "send_gcode": Role.ADMIN,
@@ -75,6 +77,10 @@ class PrinterBackend:
     role: Role = Role.ADMIN
     capabilities: frozenset = frozenset()
     machine_id: str = ""
+    # Where sd_list/sd_print files live, as shown in the UI.
+    storage_name: str = "Printer's SD card"
+    # Camera orientation the app should apply: {"flip_h", "flip_v", "rotation"} or None.
+    camera_transform: dict | None = None
 
     def supports(self, capability):
         return capability in self.capabilities
