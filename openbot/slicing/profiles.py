@@ -31,11 +31,14 @@ SPEED_LABELS = {"standard": "Standard", "fast": "Fast (Klipper)"}
 # extrusion, so the stock hotend is never asked for more than it can melt.
 KLIPPER_FAST = {
     "outer_wall_speed": "60", "inner_wall_speed": "90", "sparse_infill_speed": "120",
-    "internal_solid_infill_speed": "90", "top_surface_speed": "50",
+    # The top surface stays at the stock 30 mm/s with gentle acceleration: it's the one
+    # layer you see, and at 50 mm/s / 1500 mm/s² it came out rough on the owner's Ender
+    # (Bowden, no pressure advance or input shaper tuned).
+    "internal_solid_infill_speed": "90", "top_surface_speed": "30",
     "gap_infill_speed": "50", "support_speed": "60", "bridge_speed": "30",
     "travel_speed": "200",
     "default_acceleration": "2000", "outer_wall_acceleration": "1500",
-    "inner_wall_acceleration": "2000", "top_surface_acceleration": "1500",
+    "inner_wall_acceleration": "2000", "top_surface_acceleration": "1000",
     "travel_acceleration": "3000", "initial_layer_acceleration": "500",
     "machine_max_acceleration_x": ["3000", "3000"],
     "machine_max_acceleration_y": ["3000", "3000"],

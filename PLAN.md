@@ -918,4 +918,5 @@ The owner's Ender-3 Pro now runs **Klipper** (v0.13), driven by a Raspberry Pi 4
 - **Verified on the real printer (2026-10-11):** a 30 × 30 × 5 mm block, Fast + bed mesh, PLA.
   - Homing, the 25-point mesh (277 s from start, including heating) and the print (699 s, against a 12 min estimate) all ran; 1017 s from start to end. Klipper reported `complete`.
   - The mesh shows the bed rises about 0.5 mm from left to right (z 0.20 → 0.71 along y = 200). The two samples at each point agree within 0.01 mm.
+  - Owner feedback: the first layer was fine but the top layer was a little rough. The top surface had printed at 50 mm/s and 1500 mm/s². Fast now keeps the top surface at the stock 30 mm/s and 1000 mm/s²; the estimate is unchanged (about 12 min for this block).
   - Before that print, X homing failed twice ("No trigger on stepper_x after full movement"). The endstop itself read TRIGGERED when pressed by hand. After the owner checked the printer, homing worked.
