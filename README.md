@@ -37,6 +37,12 @@ house, or run on a Raspberry Pi next to the printer.
 | Klipper extras | – | **Fast** speed preset (Klipper accelerations, about 1.5–2× stock) and **probe the bed** (`BED_MESH_CALIBRATE`) before each print when the printer has a BLTouch or other probe |
 | Safety | Build-volume and temperature checks on every file | PTFE-safe temperature limits for the stock hotend (240 °C) |
 
+**Several printers at once:**
+- **Connect:** connect as many printers as you like (MakerBots, USB Enders, several Klipper/Mainsail Pis, OpenBot servers). Connecting one never disconnects another.
+- **Switch:** pick a printer with **Printer:** in the sidebar to slice for it, start a print on it or watch it. The others keep printing, and the picker shows each one's progress.
+- **Cameras:** the **Cameras** page shows every printer's camera side by side. Click one to open its Monitor.
+- **At start-up:** OpenBot reconnects every network printer you had connected. USB printers aren't reconnected automatically, because opening the port can reset the board.
+
 **Sharing (server mode):**
 - **Who can print:** one Mac, or a Raspberry Pi, shares a printer with other Macs on the network. Devices join with a 6-digit pairing code and get a role: **Viewer**, **Operator** or **Admin**.
 - **Shared queue:** jobs start only after someone confirms the build plate is clear.

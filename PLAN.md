@@ -920,3 +920,19 @@ The owner's Ender-3 Pro now runs **Klipper** (v0.13), driven by a Raspberry Pi 4
   - The mesh shows the bed rises about 0.5 mm from left to right (z 0.20 → 0.71 along y = 200). The two samples at each point agree within 0.01 mm.
   - Owner feedback: the first layer was fine but the top layer was a little rough. The top surface had printed at 50 mm/s and 1500 mm/s². Fast now keeps the top surface at the stock 30 mm/s and 1000 mm/s²; the estimate is unchanged (about 12 min for this block).
   - Before that print, X homing failed twice ("No trigger on stepper_x after full movement"). The endstop itself read TRIGGERED when pressed by hand. After the owner checked the printer, homing worked.
+
+## 10. Several printers at once (2026-10-12)
+
+The owner asked to print on several printers without disconnecting, to watch all the cameras side by side, and to connect several Mainsail/Moonraker Pis.
+
+- **`openbot/app/hub.py`, `PrinterHub`.** It keeps one `PrinterController` per connection and stands in for "the selected printer". Pages still talk to one object, and the hub forwards attribute access and signals for the selected controller only.
+  - Errors from background printers are prefixed with the printer's name.
+  - A background printer that needs a dialog (trust or pairing) is selected first.
+  - Connections are keyed by (kind, address). Connecting to an address that's already connected just selects it.
+  - `disconnect()` drops only the selected printer and selects another.
+- **Sidebar "Printer:" switcher.** It shows each printer as "🟢 name · 45%".
+- **Remembered printers.** Every network printer (MakerBot, Moonraker, OpenBot server) is saved in `QSettings["printers"]` and reconnected at start-up. USB isn't reconnected, as before. The old single `last_kind` setting is migrated.
+- **Cameras page.** It shows a grid of live tiles for every connected printer with a camera, and clicking a tile selects that printer and opens its Monitor. Streams run only while the page is visible, and the hub doesn't stop them when the selection changes.
+- **Prepare.** It keeps each printer type's last sliced file and restores it when you switch back, as long as the plate is unchanged. Without this, switching printers threw the slice away.
+- **Share.** It's pinned to the printer that was selected when sharing started (`AppHost(hub.active)`), so switching printers doesn't change what's shared.
+- **Tests.** `tests/test_hub.py` covers two fake Klipper printers: printing on both, forwarding, re-selecting and disconnecting. The app smoke test has a multi-printer scenario: a MakerBot and a Klipper Ender connected at once, a print on the Ender, a switch to the MakerBot, and both cameras in the grid.

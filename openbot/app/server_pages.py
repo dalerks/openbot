@@ -20,7 +20,9 @@ STATE_LABELS = {"queued": "Queued", "waiting_for_plate": "⏸ Waiting: clear the
 
 
 class AppHost:
-    """Lets the in-app server share the printer this app is connected to."""
+    """Lets the in-app server share one printer this app is connected to. It's tied to
+    that printer's own controller, so selecting another printer doesn't change what's
+    shared."""
 
     def __init__(self, ctrl):
         self.ctrl = ctrl
@@ -290,7 +292,8 @@ class SharePage(Page):
         from ..printer.trust import default_data_dir
         from ..server.advertise import Advertiser
         from ..server.app import OpenBotServer
-        server = OpenBotServer(default_data_dir(), AppHost(self.ctrl))
+        server = OpenBotServer(default_data_dir(),
+                               AppHost(getattr(self.ctrl, "active", self.ctrl)))
         server.queue.on_change(self.local_queue_changed.emit)
         # Env overrides exist for automated tests (keep them off the real network).
         port = await server.start(os.environ.get("OPENBOT_SERVER_BIND", "0.0.0.0"),

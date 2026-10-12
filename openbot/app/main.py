@@ -5,19 +5,20 @@ import logging
 import os
 import sys
 
-from PySide6.QtCore import QSettings, Qt, QTimer
-from PySide6.QtWidgets import (QApplication, QHBoxLayout, QLabel, QListWidget, QMainWindow,
-                               QMessageBox, QStackedWidget, QStatusBar, QVBoxLayout, QWidget)
+from PySide6.QtCore import Qt, QTimer
+from PySide6.QtWidgets import (QApplication, QComboBox, QHBoxLayout, QLabel, QListWidget,
+                               QMainWindow, QMessageBox, QStackedWidget, QStatusBar,
+                               QVBoxLayout, QWidget)
 
 from .. import __version__
 from . import dialogs
-from .controller import PrinterController
-from .pages import (ConsolePage, MaintenancePage, MonitorPage, NetworkPage, PreparePage,
-                    PrintersPage)
+from .hub import PrinterHub, summary
+from .pages import (CamerasPage, ConsolePage, MaintenancePage, MonitorPage, NetworkPage,
+                    PreparePage, PrintersPage)
 from .server_pages import QueuePage, SharePage
 
-PAGES = ("Printers", "Prepare", "Monitor", "Queue", "Network", "Maintenance", "Console",
-         "Share")
+PAGES = ("Printers", "Prepare", "Monitor", "Cameras", "Queue", "Network", "Maintenance",
+         "Console", "Share")
 
 
 class MainWindow(QMainWindow):
@@ -28,14 +29,28 @@ class MainWindow(QMainWindow):
         self.resize(1180, 760)
         central = QWidget()
         lay = QHBoxLayout(central)
+        side = QVBoxLayout()
+        side.setContentsMargins(0, 0, 0, 0)
+        # Which connected printer the pages show; the others keep running.
+        self.switcher_label = QLabel("Printer:")
+        side.addWidget(self.switcher_label)
+        self.switcher = QComboBox()
+        self.switcher.setToolTip("Connected printers. Pick one to see and control it; the "
+                                 "others stay connected and keep printing.")
+        self.switcher.activated.connect(self._switch_printer)
+        side.addWidget(self.switcher)
         self.nav = QListWidget()
         self.nav.addItems(PAGES)
-        self.nav.setFixedWidth(160)
-        lay.addWidget(self.nav)
+        side.addWidget(self.nav, 1)
+        side_w = QWidget()
+        side_w.setLayout(side)
+        side_w.setFixedWidth(190)
+        lay.addWidget(side_w)
         self.stack = QStackedWidget()
         self.pages = {
             "Printers": PrintersPage(ctrl), "Prepare": PreparePage(ctrl),
-            "Monitor": MonitorPage(ctrl), "Network": NetworkPage(ctrl),
+            "Monitor": MonitorPage(ctrl), "Cameras": CamerasPage(ctrl),
+            "Network": NetworkPage(ctrl),
             "Maintenance": MaintenancePage(ctrl), "Console": ConsolePage(ctrl),
             "Share": SharePage(ctrl),
         }
@@ -63,6 +78,10 @@ class MainWindow(QMainWindow):
         ctrl.server_trust_required.connect(
             lambda c, h, p: QTimer.singleShot(0, lambda: self._trust_server(c, h, p)))
         ctrl.server_pairing.connect(self._server_code)
+        if hasattr(ctrl, "printers_changed"):
+            ctrl.printers_changed.connect(self._update_switcher)
+            ctrl.printers_changed.connect(self.update_nav)
+        self._update_switcher()
         self._code_box = None
         ctrl.connection_changed.emit("disconnected", "Not connected")
 
@@ -113,6 +132,33 @@ class MainWindow(QMainWindow):
                 self, "Support OpenBot",
                 f"Thank you! Donations (suggested ${project.SUGGESTED_DONATION_USD}) are being "
                 f"set up. For now, visit {project.PUBLISHER_URL}.")
+
+    def _printers(self):
+        return self.ctrl.printers() if hasattr(self.ctrl, "printers") else []
+
+    def _update_switcher(self):
+        printers = self._printers()
+        texts = [summary(c) for c in printers]
+        if [self.switcher.itemText(i) for i in range(self.switcher.count())] != texts:
+            self.switcher.blockSignals(True)
+            if self.switcher.count() == len(texts):
+                for i, t in enumerate(texts):          # keep an open popup steady
+                    self.switcher.setItemText(i, t)
+            else:
+                self.switcher.clear()
+                self.switcher.addItems(texts)
+            self.switcher.blockSignals(False)
+        active = getattr(self.ctrl, "active", None)
+        if active in printers:
+            self.switcher.setCurrentIndex(printers.index(active))
+        shown = bool(printers)
+        self.switcher.setVisible(shown)
+        self.switcher_label.setVisible(shown)
+
+    def _switch_printer(self, index):
+        printers = self._printers()
+        if 0 <= index < len(printers):
+            self.ctrl.select(printers[index])
 
     def show_page(self, name):
         self.nav.setCurrentRow(PAGES.index(name))
@@ -188,7 +234,8 @@ class MainWindow(QMainWindow):
             task.cancel()
 
     def closeEvent(self, e):
-        self.ctrl.run(self.ctrl.disconnect(), what="disconnect")
+        closing = getattr(self.ctrl, "disconnect_all", None) or self.ctrl.disconnect
+        self.ctrl.run(closing(), what="disconnect")
         super().closeEvent(e)
 
 
@@ -236,21 +283,11 @@ def main(argv=None):
     app.setApplicationVersion(__version__)
     loop = qasync.QEventLoop(app)
     asyncio.set_event_loop(loop)
-    ctrl = PrinterController()
+    ctrl = PrinterHub()
     win = MainWindow(ctrl)
     win.show()
-    settings = QSettings()
     if "--no-autoconnect" not in sys.argv:
-        if settings.value("last_kind", "printer") == "server" and \
-                settings.value("last_server", ""):
-            host, _, port = settings.value("last_server").rpartition(":")
-            ctrl.run(ctrl.connect_server(host, int(port or 8765)), what="connect")
-        elif settings.value("last_kind") == "moonraker" and settings.value("last_moonraker"):
-            ctrl.run(ctrl.connect_moonraker(settings.value("last_moonraker"),
-                                            settings.value("last_moonraker_machine",
-                                                           "ender3_pro")), what="connect")
-        elif settings.value("last_host", ""):
-            ctrl.run(ctrl.connect_to(settings.value("last_host")), what="connect")
+        ctrl.reconnect_saved()
     closing = asyncio.Event()
     app.aboutToQuit.connect(closing.set)
     with loop:

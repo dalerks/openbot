@@ -94,6 +94,11 @@ class PrintersPage(Page):
         lay.addWidget(_title("Printers"))
         self.state = QLabel("Not connected")
         lay.addWidget(self.state)
+        hint = QLabel("You can connect several printers. Connecting another one keeps the "
+                      "others connected; pick which one to show with Printer: in the sidebar.")
+        hint.setWordWrap(True)
+        hint.setStyleSheet("color: gray;")
+        lay.addWidget(hint)
         self.conveyor = QLabel("⚠️ MakerBot Print's background service is running. It blocks "
                                "one discovery method; OpenBot will use Bonjour instead.")
         self.conveyor.setWordWrap(True)
@@ -156,6 +161,11 @@ class PrintersPage(Page):
         kg = QGridLayout(kl)
         self.mr_addr = QLineEdit(self.settings.value("last_moonraker", ""))
         self.mr_addr.setPlaceholderText("the address you open Mainsail at, e.g. 192.168.1.50")
+        from PySide6.QtWidgets import QCompleter
+        self._mr_history = QCompleter(self._moonraker_history(), self.mr_addr)
+        self._mr_history.setCaseSensitivity(Qt.CaseSensitivity.CaseInsensitive)
+        self._mr_history.setCompletionMode(QCompleter.CompletionMode.UnfilteredPopupCompletion)
+        self.mr_addr.setCompleter(self._mr_history)
         self.mr_addr.returnPressed.connect(lambda: self._connect_moonraker())
         kg.addWidget(QLabel("Address:"), 0, 0)
         kg.addWidget(self.mr_addr, 0, 1)
@@ -249,11 +259,26 @@ class PrintersPage(Page):
 
         async def go():
             err = await self.ctrl.connect_moonraker(address, machine_id, username, password)
+            if not err:
+                self._remember_moonraker(address)
             if err and "username and password" in err and username is None:
                 later(lambda: self._ask_login(address))
             elif err:
                 later(lambda: QMessageBox.warning(self, "Klipper", err))
         self.ctrl.run(go(), what="connecting to Klipper")
+
+    def _moonraker_history(self):
+        import json
+        try:
+            return json.loads(self.settings.value("moonraker_history", "[]"))
+        except (TypeError, ValueError):
+            return []
+
+    def _remember_moonraker(self, address):
+        import json
+        history = [address] + [a for a in self._moonraker_history() if a != address]
+        self.settings.setValue("moonraker_history", json.dumps(history[:10]))
+        self._mr_history.model().setStringList(history[:10])
 
     def _ask_login(self, address):
         """Shown when Moonraker requires a login (most Pis trust the home network and don't)."""
@@ -361,6 +386,7 @@ class PreparePage(Page):
         self.plate = Plate(machines.get(machines.DEFAULT_MACHINE).bed)
         self.result_path = None
         self.result_machine = None
+        self._result_stash = {}       # machine id -> its last sliced result
         self._machine_id = machines.DEFAULT_MACHINE
         lay = QHBoxLayout(self)
 
@@ -534,6 +560,24 @@ class PreparePage(Page):
         self._update_print_button()
 
     def _machine_changed(self):
+        """Switch printer type. Each type's last sliced file is kept, and comes back when
+        you switch back (e.g. between connected printers) if the plate hasn't changed."""
+        old = getattr(self, "_machine_id", None)
+        if old and getattr(self, "result_path", None):
+            self._result_stash[old] = (self.result_path, self.result.text(),
+                                       self.result_machine, self.result_klipper)
+        self._switching_machine = True
+        try:
+            self._apply_machine()
+        finally:
+            self._switching_machine = False
+        kept = self._result_stash.get(self._machine_id)
+        if kept and not self.result_path and os.path.exists(kept[0]):
+            path, text, machine_id, klipper = kept
+            self._set_result(path, text, machine_id)
+            self.result_klipper = klipper
+
+    def _apply_machine(self):
         m = self.machine_def
         if len(self.plate):
             try:
@@ -719,6 +763,8 @@ class PreparePage(Page):
         self.clear_btn.setEnabled(n > 0)
         self.slice_btn.setEnabled(n > 0 and not problems)
         self._show_selected()
+        if not getattr(self, "_switching_machine", False):
+            self._result_stash = {}         # the plate changed: older slices are stale
         self._set_result(None)
 
     # --- selected object
@@ -1134,8 +1180,12 @@ class MonitorPage(Page):
 
     def _on_connection(self, state, message):
         super()._on_connection(state, message)
-        if state != "connected":
-            self.cam_btn.setText("Start Camera")
+        # Also runs when another printer is selected: match that printer's camera.
+        self.cam_btn.setText("Stop Camera" if state == "connected" and
+                             self.ctrl.camera_running() else "Start Camera")
+        self._last_image = None
+        self.camera.clear()
+        self.camera.setText("Camera off")
         connected = state == "connected"
         self.camera_panel.setVisible(not connected or self.ctrl.supports(caps.CAMERA))
         self.sd_box.setVisible(connected and self.ctrl.supports(caps.SD_CARD))
@@ -1275,6 +1325,125 @@ class MonitorPage(Page):
         else:
             with open(path, "wb") as f:
                 f.write(frame.data)
+
+
+# ================================================================ Cameras
+
+class CamerasPage(Page):
+    """Every connected printer's camera side by side. Click one to open its Monitor."""
+    needs_connection = False
+
+    def __init__(self, ctrl, parent=None):
+        super().__init__(ctrl, parent)
+        lay = QVBoxLayout(self)
+        lay.addWidget(_title("Cameras"))
+        self.note = QLabel("")
+        lay.addWidget(self.note)
+        self.grid_widget = QWidget()
+        self.grid = QGridLayout(self.grid_widget)
+        self.grid.setSpacing(10)
+        lay.addWidget(self.grid_widget, 1)
+        self.tiles = {}          # controller -> (frame QWidget, title QLabel, image QLabel)
+        self._started = set()    # cameras this page turned on (and turns off again)
+        self._frame_slots = {}
+        self._order = []
+        if hasattr(ctrl, "printers_changed"):
+            ctrl.printers_changed.connect(self._rebuild)
+
+    def _camera_printers(self):
+        printers = self.ctrl.printers() if hasattr(self.ctrl, "printers") else []
+        return [c for c in printers if c.state == "connected" and c.supports(caps.CAMERA)]
+
+    def visible_in_nav(self, state):
+        return bool(self._camera_printers())
+
+    def _rebuild(self):
+        printers = self._camera_printers()
+        for c in [c for c in self.tiles if c not in printers]:
+            frame, _, _ = self.tiles.pop(c)
+            frame.deleteLater()
+            self._started.discard(c)
+            slot = self._frame_slots.pop(c, None)
+            if slot is not None:
+                import warnings
+                with warnings.catch_warnings():       # the controller may already be gone
+                    warnings.simplefilter("ignore", RuntimeWarning)
+                    try:
+                        c.camera_frame.disconnect(slot)
+                    except (RuntimeError, TypeError):
+                        pass
+        for c in printers:
+            if c not in self.tiles:
+                frame = QWidget()
+                fl = QVBoxLayout(frame)
+                fl.setContentsMargins(0, 0, 0, 0)
+                title = QLabel()
+                fl.addWidget(title)
+                img = QLabel("Camera off")
+                img.setAlignment(Qt.AlignmentFlag.AlignCenter)
+                img.setMinimumSize(320, 240)
+                img.setStyleSheet("background:#111; color:#aaa; border-radius:6px;")
+                img.setCursor(Qt.CursorShape.PointingHandCursor)
+                img.setToolTip("Open this printer's Monitor page")
+                img.mousePressEvent = lambda e, c=c: self._open(c)
+                fl.addWidget(img, 1)
+                self.tiles[c] = (frame, title, img)
+                slot = (lambda image, c=c: self._frame(c, image))
+                self._frame_slots[c] = slot
+                c.camera_frame.connect(slot)
+                if self.isVisible():
+                    self._start(c)
+        if printers != self._order:
+            # Grid: 1 -> 1x1, 2 -> 2x1, 3-4 -> 2x2, 5-6 -> 3x2 ...
+            self._order = printers
+            cols = 1 if len(printers) <= 1 else 2 if len(printers) <= 4 else 3
+            for i, c in enumerate(printers):
+                self.grid.addWidget(self.tiles[c][0], i // cols, i % cols)
+        self._titles()
+        self.note.setText("" if printers else "No connected printer has a camera.")
+
+    def _titles(self):
+        from .hub import summary
+        for c, (_, title, _) in self.tiles.items():
+            title.setText(f"<b>{summary(c)}</b>")
+
+    def _frame(self, ctrl, image):
+        tile = self.tiles.get(ctrl)
+        if tile and self.isVisible():
+            label = tile[2]
+            label.setPixmap(QPixmap.fromImage(image).scaled(
+                label.size(), Qt.AspectRatioMode.KeepAspectRatio,
+                Qt.TransformationMode.SmoothTransformation))
+            self._titles()
+
+    def _start(self, ctrl):
+        if not ctrl.camera_running():
+            ctrl.start_camera()
+            self._started.add(ctrl)
+
+    def _open(self, ctrl):
+        if hasattr(self.ctrl, "select"):
+            self.ctrl.select(ctrl)
+        self.window().show_page("Monitor")
+
+    def showEvent(self, e):
+        super().showEvent(e)
+        self._rebuild()
+        if hasattr(self.ctrl, "grid_cameras"):
+            self.ctrl.grid_cameras = True
+        for c in self.tiles:
+            self._start(c)
+
+    def hideEvent(self, e):
+        super().hideEvent(e)
+        if hasattr(self.ctrl, "grid_cameras"):
+            self.ctrl.grid_cameras = False
+        active = getattr(self.ctrl, "active", None)
+        for c in list(self._started):
+            # Keep the selected printer's camera if the Monitor page will show it.
+            if c is not active:
+                c.run(c.stop_camera(), what="camera")
+        self._started.clear()
 
 
 # ================================================================ Network

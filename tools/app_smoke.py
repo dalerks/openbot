@@ -26,7 +26,7 @@ from fake_moonraker import CAMERA_JPEG, FakeMoonraker  # noqa: E402
 from fake_printer import FakePrinter  # noqa: E402
 from openbot import drives  # noqa: E402
 from openbot.app import dialogs  # noqa: E402
-from openbot.app.controller import PrinterController  # noqa: E402
+from openbot.app.hub import PrinterHub  # noqa: E402
 from openbot.app.main import PAGES, MainWindow  # noqa: E402
 from openbot.backend import Role  # noqa: E402
 
@@ -144,6 +144,7 @@ async def scenario(win, ctrl):
     if MODEL:
         await ender_scenario(win, ctrl, shot)
         await klipper_scenario(win, ctrl, shot)
+        await multi_printer_scenario(win, ctrl, shot)
         await share_scenario(win, ctrl, shot)
     real_errors = [e for e in errors if "camera" not in e]
     if real_errors:
@@ -282,6 +283,59 @@ async def klipper_scenario(win, ctrl, shot):
         await pi.stop()
 
 
+async def multi_printer_scenario(win, ctrl, shot):
+    """A MakerBot and a Klipper Ender connected at once: print on one while the other is
+    selected, switch between them, and watch both cameras side by side."""
+    fake = await FakePrinter().start()
+    pi = await FakeMoonraker(jpeg=CAMERA_JPEG).start()
+    try:
+        printers = win.pages["Printers"]
+        printers.ip.setText(f"127.0.0.1:{fake.port}")
+        printers._connect()
+        await until(lambda: ctrl.connected and ctrl.machine_id == "replicator_plus",
+                    "MakerBot connect")
+        makerbot = ctrl.active
+        printers.mr_addr.setText(pi.address)
+        printers._connect_moonraker()
+        await until(lambda: len(ctrl.printers()) == 2 and ctrl.connected and
+                    ctrl.machine_id == "ender3_pro", "second printer")
+        klipper = ctrl.active
+        assert makerbot.connected, "connecting the Ender dropped the MakerBot"
+        assert win.switcher.count() == 2 and win.switcher.isVisibleTo(win)
+
+        prepare = win.pages["Prepare"]
+        await until(lambda: prepare.machine.currentData() == "ender3_pro", "Prepare: Ender")
+        assert prepare.result_path and prepare.result_path.endswith(".gcode"), \
+            "the Ender's sliced file was lost when switching printers"
+        prepare._print()
+        await until(lambda: any(a[0] == "start" for a in pi.actions), "Klipper print")
+        await until(lambda: klipper.status and klipper.status.process, "Klipper printing")
+
+        win._switch_printer(0)
+        assert ctrl.active is makerbot and ctrl.machine_id == "replicator_plus"
+        await until(lambda: prepare.machine.currentData() == "replicator_plus",
+                    "Prepare follows the selected printer")
+        assert klipper.connected and klipper.status.process is not None
+        print("switcher:", [win.switcher.itemText(i) for i in range(win.switcher.count())])
+
+        cams = win.pages["Cameras"]
+        assert not win.nav.item(PAGES.index("Cameras")).isHidden()
+        win.show_page("Cameras")
+        await until(lambda: len(cams.tiles) == 2 and all(
+            t[2].pixmap() is not None and not t[2].pixmap().isNull()
+            for t in cams.tiles.values()), "both cameras streaming", timeout=30)
+        shot("Cameras")
+        print("cameras:", [t[1].text() for t in cams.tiles.values()])
+        win.show_page("Printers")
+        await until(lambda: not klipper.camera_running(), "grid cameras stopped")
+        await ctrl.disconnect_all()
+        while len(ctrl.printers()) > 0:
+            await ctrl.disconnect()
+    finally:
+        await fake.stop()
+        await pi.stop()
+
+
 async def share_scenario(win, ctrl, shot):
     """Window A shares the fake MakerBot; window B joins as a client and prints via the queue."""
     os.environ.update(OPENBOT_SERVER_BIND="127.0.0.1", OPENBOT_SERVER_PORT="0",
@@ -297,7 +351,7 @@ async def share_scenario(win, ctrl, shot):
     port = share.server.port
     assert not win.nav.item(PAGES.index("Queue")).isHidden()
 
-    ctrl_b = PrinterController()
+    ctrl_b = PrinterHub()
     win_b = MainWindow(ctrl_b)
     win_b.show()
     pb = win_b.pages["Printers"]
@@ -349,7 +403,7 @@ def main():
     app.setApplicationName("OpenBot-smoke")
     loop = qasync.QEventLoop(app)
     asyncio.set_event_loop(loop)
-    ctrl = PrinterController()
+    ctrl = PrinterHub()
     win = MainWindow(ctrl)
     win.show()
     with loop:
