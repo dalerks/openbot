@@ -5,7 +5,8 @@
 <h1 align="center">OpenBot</h1>
 
 <p align="center">
-  Free, open host software for the <b>MakerBot Replicator+</b> and <b>Creality Ender-3</b> printers.<br>
+  Free, open host software for the <b>MakerBot Replicator+</b> and <b>Creality Ender-3</b> printers,<br>
+  including Enders running <b>Klipper</b> with Mainsail or Fluidd. Run several printers at once.<br>
   A <a href="https://www.lighthouseconsult.com/case-studies/openbot/">Lighthouse Consulting</a> project ·
   <a href="https://www.josephrounds.dev/openbot/">Project page</a>
 </p>
@@ -21,8 +22,9 @@ MakerBot has ended support for MakerBot Print and MakerBot Desktop on the Replic
 OpenBot replaces them. It slices your models, sends them to the printer over the network,
 shows the printer's camera, and changes its Wi-Fi settings. It also drives Creality Ender-3
 printers over USB, by SD card, or through a Raspberry Pi running Klipper with Mainsail or
-Fluidd, and can share any of these printers with every Mac in the
-house, or run on a Raspberry Pi next to the printer.
+Fluidd. You can run several printers at once from one window and watch all their cameras
+side by side. OpenBot can also share any of these printers with every Mac in the house, or
+run on a Raspberry Pi next to the printer.
 
 ## What it does
 
@@ -53,16 +55,20 @@ house, or run on a Raspberry Pi next to the printer.
 ### Mac (macOS 12 or later, Apple Silicon and Intel)
 
 Download `OpenBot-<version>-universal2.dmg` from [Releases](https://github.com/dalerks/openbot/releases),
-open it and drag **OpenBot** to Applications.
+open it and drag **OpenBot** to Applications. (No release is published yet; until then,
+build it from source as shown below.)
 
 ### Raspberry Pi server (Raspberry Pi OS 64-bit, Bookworm or later)
 
 ```sh
 sudo apt install ./openbot-server_<version>_all.deb
-sudo nano /etc/openbot/server.toml        # choose your printer
+sudo nano /etc/openbot/server.toml        # choose your printer: MakerBot, USB Ender or Klipper
 sudo systemctl start openbot
 journalctl -u openbot | grep "setup code" # enter this in OpenBot on your Mac to become Admin
 ```
+
+For a Klipper printer, set `moonraker = "<address>"` in `server.toml`. If OpenBot runs on
+the same Pi as Mainsail, use `"localhost"`.
 
 Then open `https://<pi-name>.local:8765/` in a browser, or use **Printers → OpenBot servers** in the Mac app.
 
@@ -77,16 +83,17 @@ sudo openbot-server server clients
 ## First steps
 
 1. **Replicator+:** Printers → Find Printers → Connect. Trust the printer's certificate, then press the knob on the printer once to pair.
-2. **Ender-3:** plug in USB, then Printers → USB printers → Refresh → Connect USB. Or slice and use **Save to SD Card…**.
-   **Ender-3 on Klipper:** Printers → Klipper printers → enter the address you open Mainsail at → Connect. OpenBot uses Moonraker's API, and asks for a login only if your Moonraker requires one.
-3. **Prepare:** Add Models → pick printer, material and quality → Slice → Print.
+2. **Ender-3 over USB:** plug in USB, then Printers → USB printers → Refresh → Connect USB. Or slice and use **Save to SD Card…**.
+3. **Ender-3 on Klipper:** Printers → Klipper printers → enter the address you open Mainsail at → Connect. OpenBot uses Moonraker's API, and asks for a login only if your Moonraker requires one.
+4. **More printers:** connect the next one the same way; the others stay connected. Choose which one you're working with in **Printer:** at the top of the sidebar.
+5. **Prepare:** Add Models → pick material and quality → Slice → Print. On a Klipper printer, also choose **Speed** (Standard or Fast) and whether to **probe the bed** first.
 
 ## Building from source
 
 ```sh
 git clone https://github.com/dalerks/openbot.git && cd openbot
 python3.12 -m venv .venv && .venv/bin/pip install -e ".[app,dev]"
-.venv/bin/python -m pytest          # 95+ tests; slicing tests need OrcaSlicer (below)
+.venv/bin/python -m pytest          # 119 tests; slicing tests need OrcaSlicer (below)
 .venv/bin/openbot-app               # the desktop app
 .venv/bin/openbot --help            # command line: discover, pair, slice, print, wifi, serve…
 ```
