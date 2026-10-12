@@ -900,5 +900,8 @@ The owner's Ender-3 Pro now runs **Klipper** (v0.13), driven by a Raspberry Pi 4
 - Server: `openbot serve --moonraker ADDRESS` or `[printer] moonraker = "…"`.
 - Tests: `tests/fake_moonraker.py` and `tests/test_moonraker.py`, plus a server test and a smoke-test scenario.
 
-**Verified against the real Pi (read-only):** connect, live temperatures, file list, live camera and snapshot, console (`STATUS`, `M115`).
-**Not yet verified:** a real upload-and-print from OpenBot, and OpenBot's Orca start G-code on Klipper. Klipper runs Orca's `M190`/`M109`/`G28` start code as is; `G28` homes Z with the BLTouch through `safe_z_home`, and Klipper loads the `default` mesh at start-up.
+**Verified on the real Pi (2026-10-11):**
+- Connect, live temperatures, file list, live camera and snapshot, console (`STATUS`, `M115`).
+- **A real print.** OpenBot sliced a 20 × 20 × 2 mm square (Ender-3 Pro, PLA 205/60 °C, standard quality), uploaded it and started it in one call. Heating took about 2 min and printing 394 s; Klipper reported `complete`.
+- Orca's start G-code ran unmodified. Klipper ignores the Marlin-only `M201`/`M203`/`M205` and runs `M73`, `M204`, `M190`, `M109` and `G28` (the BLTouch homes Z through `safe_z_home`).
+- During that print, the Mac's network dropped for about 45 s, and Moonraker closed OpenBot's and Mainsail's websockets together (ping timeouts). The print carried on, because the Pi runs it. The app's reconnect loop covers this case.
