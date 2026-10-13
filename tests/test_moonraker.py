@@ -224,3 +224,14 @@ def test_klipper_settings():
     cfg = {"gcode_flavor": "marlin"}
     _klipper_overrides(cfg, PrintSettings(machine="ender3_pro", klipper=True).validate())
     assert cfg["gcode_flavor"] == "marlin" and "default_acceleration" not in cfg
+
+
+def test_fast_caps_flow_for_the_stock_hotend():
+    from openbot.slicing.profiles import FAST_MAX_FLOW, PrintSettings, _klipper_overrides
+    s = PrintSettings(machine="ender3_pro", klipper=True, speed="fast").validate()
+    cfg = {"filament_max_volumetric_speed": ["12"]}               # Orca's PLA limit
+    _klipper_overrides(cfg, s)
+    assert cfg["filament_max_volumetric_speed"] == [f"{FAST_MAX_FLOW:g}"]
+    cfg = {"filament_max_volumetric_speed": ["3.6"]}              # TPU: never raised
+    _klipper_overrides(cfg, s)
+    assert cfg["filament_max_volumetric_speed"] == ["3.6"]

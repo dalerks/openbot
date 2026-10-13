@@ -936,3 +936,12 @@ The owner asked to print on several printers without disconnecting, to watch all
 - **Prepare.** It keeps each printer type's last sliced file and restores it when you switch back, as long as the plate is unchanged. Without this, switching printers threw the slice away.
 - **Share.** It's pinned to the printer that was selected when sharing started (`AppHost(hub.active)`), so switching printers doesn't change what's shared.
 - **Tests.** `tests/test_hub.py` covers two fake Klipper printers: printing on both, forwarding, re-selecting and disconnecting. The app smoke test has a multi-printer scenario: a MakerBot and a Klipper Ender connected at once, a print on the Ender, a switch to the MakerBot, and both cameras in the grid.
+
+### 10.1 Follow-ups (2026-10-12)
+- **Fast came out thin and flimsy.** The owner reported this on Fast prints. Sparse infill at 120 mm/s needed 10.8 mm³/s and inner walls at 90 mm/s needed 8.1 mm³/s, which is more than a stock Creality hotend melts at 205 °C (about 7–8 mm³/s).
+  - Fix: Fast now caps `filament_max_volumetric_speed` at `FAST_MAX_FLOW` = 7 mm³/s. It never raises a filament's own lower limit, such as TPU's.
+  - Fast speeds are now inner walls 75 mm/s, solid infill 75 mm/s and sparse infill 90 mm/s, but the cap limits 0.45 × 0.2 mm lines to about 78 mm/s.
+  - The 30 mm test block is now 13 min on Fast and 18 min on Standard. Most of the gain comes from acceleration.
+  - **Not yet re-printed.**
+- **Klipper printers list.** The Printers page now lists every added Mainsail/Fluidd printer (`QSettings["klipper_printers"]`, migrated from earlier settings), each showing its live state, with Connect/Show, Disconnect and Remove. "Add & Connect" adds a printer. `PrinterHub.disconnect(ctrl)` can now disconnect any printer, not only the selected one.
+- **Smoke test.** It now connects two fake Klipper Pis plus a MakerBot at once, and disconnects one Pi from its row while the other two stay connected.

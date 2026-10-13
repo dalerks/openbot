@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "openbot"
-version = "0.3.0"
+version = "0.3.1"
 description = "Network host software for the MakerBot Replicator+ (replaces MakerBot Desktop/Print)"
 readme = "README.md"
 license = { text = "GPL-3.0-or-later" }

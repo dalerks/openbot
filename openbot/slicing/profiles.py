@@ -26,15 +26,14 @@ SPEEDS = ("standard", "fast")
 SPEED_LABELS = {"standard": "Standard", "fast": "Fast (Klipper)"}
 
 # Fast preset for a stock Ender-3 class printer on Klipper (Bowden extruder, stock hotend,
-# no input shaper): roughly 1.5-2x the stock profile, inside Klipper's max_accel 3000 and
-# max_velocity 300. The filament's max volumetric speed (12 mm³/s for PLA) still caps
-# extrusion, so the stock hotend is never asked for more than it can melt.
+# no input shaper), inside Klipper's max_accel 3000 and max_velocity 300. Most of the gain
+# comes from acceleration; extrusion is capped at FAST_MAX_FLOW (below).
 KLIPPER_FAST = {
-    "outer_wall_speed": "60", "inner_wall_speed": "90", "sparse_infill_speed": "120",
+    "outer_wall_speed": "60", "inner_wall_speed": "75", "sparse_infill_speed": "90",
     # The top surface stays at the stock 30 mm/s with gentle acceleration: it's the one
     # layer you see, and at 50 mm/s / 1500 mm/s² it came out rough on the owner's Ender
     # (Bowden, no pressure advance or input shaper tuned).
-    "internal_solid_infill_speed": "90", "top_surface_speed": "30",
+    "internal_solid_infill_speed": "75", "top_surface_speed": "30",
     "gap_infill_speed": "50", "support_speed": "60", "bridge_speed": "30",
     "travel_speed": "200",
     "default_acceleration": "2000", "outer_wall_acceleration": "1500",
@@ -46,6 +45,11 @@ KLIPPER_FAST = {
     "machine_max_acceleration_travel": ["3000", "3000"],
     "machine_max_speed_x": ["300", "300"], "machine_max_speed_y": ["300", "300"],
 }
+
+# mm³/s. Orca's PLA profile allows 12, but a stock Creality hotend at 205 °C melts about
+# 7-8: the owner's first Fast prints (infill 10.8, inner walls 8.1 mm³/s) came out thin and
+# flimsy. 7 mm³/s limits 0.45 mm x 0.2 mm lines to about 78 mm/s.
+FAST_MAX_FLOW = 7.0
 
 BED_MESH_GCODE = "BED_MESH_CALIBRATE ; probe the bed (added by OpenBot)"
 
@@ -225,6 +229,11 @@ def orca_config(settings: PrintSettings):
 def _klipper_overrides(cfg, s):
     if s.speed == "fast":
         cfg.update(KLIPPER_FAST)
+        # Never raise a filament's own limit (TPU's is far lower), only lower PLA/PETG's.
+        flows = cfg.get("filament_max_volumetric_speed") or [str(FAST_MAX_FLOW)]
+        cfg["filament_max_volumetric_speed"] = [
+            f"{min(float(v), FAST_MAX_FLOW):g}" if v not in (None, "nil") else
+            f"{FAST_MAX_FLOW:g}" for v in flows]
         # Klipper flavour: accelerations become SET_VELOCITY_LIMIT, which Klipper honours
         # (with the Marlin flavour an M204 would pin it at the profile's 500 mm/s²).
         cfg["gcode_flavor"] = "klipper"

@@ -159,28 +159,43 @@ class PrintersPage(Page):
 
         kl = QGroupBox("Klipper printers (Mainsail or Fluidd on a Raspberry Pi)")
         kg = QGridLayout(kl)
-        self.mr_addr = QLineEdit(self.settings.value("last_moonraker", ""))
-        self.mr_addr.setPlaceholderText("the address you open Mainsail at, e.g. 192.168.1.50")
-        from PySide6.QtWidgets import QCompleter
-        self._mr_history = QCompleter(self._moonraker_history(), self.mr_addr)
-        self._mr_history.setCaseSensitivity(Qt.CaseSensitivity.CaseInsensitive)
-        self._mr_history.setCompletionMode(QCompleter.CompletionMode.UnfilteredPopupCompletion)
-        self.mr_addr.setCompleter(self._mr_history)
+        # Every Mainsail/Fluidd printer you've added; connect as many as you like.
+        self.mr_list = QListWidget()
+        self.mr_list.setMaximumHeight(110)
+        self.mr_list.itemDoubleClicked.connect(lambda *_: self._mr_connect_selected())
+        self.mr_list.currentRowChanged.connect(lambda *_: self._mr_buttons())
+        kg.addWidget(self.mr_list, 0, 0, 1, 4)
+        self.mr_connect_btn = QPushButton("Connect")
+        self.mr_connect_btn.clicked.connect(self._mr_connect_selected)
+        self.mr_disconnect_btn = QPushButton("Disconnect")
+        self.mr_disconnect_btn.clicked.connect(self._mr_disconnect_selected)
+        self.mr_remove_btn = QPushButton("Remove")
+        self.mr_remove_btn.clicked.connect(self._mr_remove_selected)
+        brow = QHBoxLayout()
+        for w in (self.mr_connect_btn, self.mr_disconnect_btn, self.mr_remove_btn):
+            brow.addWidget(w)
+        brow.addStretch()
+        kg.addLayout(brow, 1, 0, 1, 4)
+        self.mr_addr = QLineEdit()
+        self.mr_addr.setPlaceholderText("add a printer: the address you open Mainsail at, "
+                                        "e.g. 192.168.1.50")
         self.mr_addr.returnPressed.connect(lambda: self._connect_moonraker())
-        kg.addWidget(QLabel("Address:"), 0, 0)
-        kg.addWidget(self.mr_addr, 0, 1)
+        kg.addWidget(self.mr_addr, 2, 0, 1, 2)
         self.mr_machine = QComboBox()
         for m in machines.MACHINES.values():
             if m.output == "gcode":
                 self.mr_machine.addItem(m.name, m.id)
         last_mr = self.settings.value("last_moonraker_machine", "ender3_pro")
         self.mr_machine.setCurrentIndex(max(0, self.mr_machine.findData(last_mr)))
-        kg.addWidget(QLabel("Printer:"), 1, 0)
-        kg.addWidget(self.mr_machine, 1, 1)
-        mr_btn = QPushButton("Connect")
+        kg.addWidget(self.mr_machine, 2, 2)
+        mr_btn = QPushButton("Add && Connect")
         mr_btn.clicked.connect(lambda: self._connect_moonraker())
-        kg.addWidget(mr_btn, 1, 2)
+        kg.addWidget(mr_btn, 2, 3)
         lay.addWidget(kl)
+        self._mr_saved = self._load_klipper_printers()
+        if hasattr(ctrl, "printers_changed"):
+            ctrl.printers_changed.connect(self._mr_refresh)
+        self._mr_refresh()
 
         srv = QGroupBox("OpenBot servers (a printer shared by another Mac or a Raspberry Pi)")
         sl = QGridLayout(srv)
@@ -247,44 +262,144 @@ class PrintersPage(Page):
         self.settings.setValue("last_usb_machine", machine_id)
         self.ctrl.run(self.ctrl.connect_usb(port, machine_id), what="USB connect")
 
+    # --- Klipper printers
+
+    def _load_klipper_printers(self):
+        """[{address, machine}], from this list's own setting or, the first time, from
+        printers used before it existed."""
+        import json
+        try:
+            saved = json.loads(self.settings.value("klipper_printers", "null"))
+        except (TypeError, ValueError):
+            saved = None
+        if isinstance(saved, list):
+            return saved
+        found = []
+        try:
+            for e in json.loads(self.settings.value("printers", "[]")):
+                if e.get("kind") == "moonraker":
+                    found.append({"address": e["address"],
+                                  "machine": e.get("machine") or "ender3_pro"})
+        except (TypeError, ValueError, KeyError):
+            pass
+        last = self.settings.value("last_moonraker", "")
+        if last and all(f["address"] != last for f in found):
+            found.append({"address": last, "machine": self.settings.value(
+                "last_moonraker_machine", "ender3_pro")})
+        return found
+
+    def _mr_store(self):
+        import json
+        self.settings.setValue("klipper_printers", json.dumps(self._mr_saved))
+
+    def _mr_ctrl(self, entry):
+        return self.ctrl.find("moonraker", entry["address"]) \
+            if hasattr(self.ctrl, "find") else None
+
+    def _mr_refresh(self):
+        from .hub import summary
+        row = self.mr_list.currentRow()
+        texts = []
+        for e in self._mr_saved:
+            c = self._mr_ctrl(e)
+            name = machines.MACHINES[e["machine"]].name if e["machine"] in \
+                machines.MACHINES else e["machine"]
+            if c is not None and c.key is not None:
+                texts.append(f"{summary(c)}   ({e['address']}, {name})")
+            else:
+                texts.append(f"⚪️ {e['address']}   ({name})")
+        if [self.mr_list.item(i).text() for i in range(self.mr_list.count())] != texts:
+            self.mr_list.blockSignals(True)
+            self.mr_list.clear()
+            self.mr_list.addItems(texts)
+            self.mr_list.setCurrentRow(min(max(row, 0), len(texts) - 1))
+            self.mr_list.blockSignals(False)
+        if not texts:
+            self.mr_list.addItem("(none yet: add one below)")
+            self.mr_list.item(0).setFlags(Qt.ItemFlag.NoItemFlags)
+        self._mr_buttons()
+
+    def _mr_selected(self):
+        i = self.mr_list.currentRow()
+        return self._mr_saved[i] if 0 <= i < len(self._mr_saved) else None
+
+    def _mr_buttons(self):
+        e = self._mr_selected()
+        c = self._mr_ctrl(e) if e else None
+        live = c is not None and c.key is not None and c.state != "disconnected"
+        self.mr_connect_btn.setEnabled(e is not None)
+        self.mr_connect_btn.setText("Show" if live else "Connect")
+        self.mr_disconnect_btn.setEnabled(live)
+        self.mr_remove_btn.setEnabled(e is not None)
+
+    def _mr_connect_selected(self):
+        e = self._mr_selected()
+        if e:
+            self._start_moonraker(e["address"], e["machine"])
+
+    def _mr_disconnect_selected(self):
+        e = self._mr_selected()
+        c = self._mr_ctrl(e) if e else None
+        if c is not None:
+            self.ctrl.run(self.ctrl.disconnect(c), what="disconnect")
+
+    def _mr_remove_selected(self):
+        e = self._mr_selected()
+        if not e:
+            return
+        c = self._mr_ctrl(e)
+        if c is not None and c.key is not None:
+            if QMessageBox.question(
+                    self, "Remove printer", f"Disconnect and remove {e['address']}? A print "
+                    "already running on it carries on.") != QMessageBox.StandardButton.Yes:
+                return
+            self.ctrl.run(self.ctrl.disconnect(c), what="disconnect")
+        self._mr_saved.remove(e)
+        self._mr_store()
+        self._mr_refresh()
+
     def _connect_moonraker(self, username=None, password=None):
+        """Add the address typed below the list (if new) and connect to it."""
         address = self.mr_addr.text().strip()
         if not address:
             QMessageBox.information(self, "Klipper", "Enter the address you use to open "
                                                      "Mainsail or Fluidd.")
             return
         machine_id = self.mr_machine.currentData()
-        self.settings.setValue("last_moonraker", address)
         self.settings.setValue("last_moonraker_machine", machine_id)
+        self._start_moonraker(address, machine_id, username, password, add=True)
 
+    def _start_moonraker(self, address, machine_id, username=None, password=None, add=False):
         async def go():
             err = await self.ctrl.connect_moonraker(address, machine_id, username, password)
             if not err:
-                self._remember_moonraker(address)
+                self.settings.setValue("last_moonraker", address)
+                if add:
+                    self._mr_add(address, machine_id)
+                    self.mr_addr.clear()
             if err and "username and password" in err and username is None:
-                later(lambda: self._ask_login(address))
+                later(lambda: self._ask_login(address, machine_id, add))
             elif err:
                 later(lambda: QMessageBox.warning(self, "Klipper", err))
         self.ctrl.run(go(), what="connecting to Klipper")
 
-    def _moonraker_history(self):
-        import json
-        try:
-            return json.loads(self.settings.value("moonraker_history", "[]"))
-        except (TypeError, ValueError):
-            return []
+    def _mr_add(self, address, machine_id):
+        from ..moonraker import base_url
+        key = base_url(address)
+        for e in self._mr_saved:
+            if base_url(e["address"]) == key:
+                e["machine"] = machine_id
+                break
+        else:
+            self._mr_saved.append({"address": address, "machine": machine_id})
+        self._mr_store()
+        self._mr_refresh()
 
-    def _remember_moonraker(self, address):
-        import json
-        history = [address] + [a for a in self._moonraker_history() if a != address]
-        self.settings.setValue("moonraker_history", json.dumps(history[:10]))
-        self._mr_history.model().setStringList(history[:10])
-
-    def _ask_login(self, address):
+    def _ask_login(self, address, machine_id, add=False):
         """Shown when Moonraker requires a login (most Pis trust the home network and don't)."""
         dlg = dialogs.LoginDialog(f"Moonraker at {address} needs a login.", self)
         if dlg.exec() == dlg.DialogCode.Accepted:
-            self._connect_moonraker(dlg.username(), dlg.password())
+            self._start_moonraker(address, machine_id, dlg.username(), dlg.password(), add)
 
     def _on_connection(self, state, message):
         icon = {"connected": "🟢", "connecting": "🟡", "reconnecting": "🟠"}.get(state, "⚪️")

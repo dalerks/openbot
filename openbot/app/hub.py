@@ -74,6 +74,17 @@ class PrinterHub(QObject):
             self.queue_changed.emit(ctrl.backend.queue)
         self.printers_changed.emit()
 
+    def find(self, kind, address):
+        """The controller for a connection, or None."""
+        if kind == "moonraker":
+            from ..moonraker import base_url
+            from ..printer.errors import PrinterError
+            try:
+                address = base_url(address)
+            except PrinterError:
+                return None
+        return next((c for c in self.controllers if c.key == (kind, address)), None)
+
     def printers(self):
         """Controllers that are, or are trying to be, connected to something."""
         return [c for c in self.controllers if c.key is not None]
@@ -133,9 +144,17 @@ class PrinterHub(QObject):
         self.printers_changed.emit()
         return ctrl
 
-    async def disconnect(self):
-        """Disconnect the selected printer; select another connected one if there is one."""
-        ctrl = self.active
+    async def disconnect(self, ctrl=None):
+        """Disconnect a printer (the selected one by default). If it was selected, select
+        another connected one if there is one."""
+        ctrl = ctrl or self.active
+        if ctrl is not self.active:
+            self._forget(ctrl)
+            await ctrl.disconnect()
+            ctrl.key = None
+            self._drop(ctrl)
+            self.printers_changed.emit()
+            return
         self._forget(ctrl)
         await ctrl.disconnect()
         ctrl.key = None

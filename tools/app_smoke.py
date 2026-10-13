@@ -288,6 +288,7 @@ async def multi_printer_scenario(win, ctrl, shot):
     selected, switch between them, and watch both cameras side by side."""
     fake = await FakePrinter().start()
     pi = await FakeMoonraker(jpeg=CAMERA_JPEG).start()
+    pi2 = await FakeMoonraker(jpeg=CAMERA_JPEG).start()
     try:
         printers = win.pages["Printers"]
         printers.ip.setText(f"127.0.0.1:{fake.port}")
@@ -301,6 +302,26 @@ async def multi_printer_scenario(win, ctrl, shot):
                     ctrl.machine_id == "ender3_pro", "second printer")
         klipper = ctrl.active
         assert makerbot.connected, "connecting the Ender dropped the MakerBot"
+        printers.mr_addr.setText(pi2.address)
+        printers.mr_machine.setCurrentIndex(printers.mr_machine.findData("ender3"))
+        printers._connect_moonraker()
+        await until(lambda: len(ctrl.printers()) == 3 and ctrl.connected and
+                    ctrl.machine_id == "ender3", "second Klipper printer")
+        klipper2 = ctrl.active
+        assert klipper.connected and makerbot.connected
+        rows = [printers.mr_list.item(i).text() for i in range(printers.mr_list.count())]
+        print("Klipper list:", rows)
+        assert sum(r.startswith("🟢") for r in rows) == 2, rows
+        shot("Printers", "printers_multi")
+        # Disconnect the second Pi from its row: the others stay connected.
+        printers.mr_list.setCurrentRow(next(i for i, r in enumerate(rows)
+                                            if str(pi2.port) in r))
+        printers.mr_disconnect_btn.click()
+        await until(lambda: not klipper2.connected and len(ctrl.printers()) == 2,
+                    "row disconnect")
+        assert klipper.connected and makerbot.connected
+        ctrl.select(klipper)
+        await until(lambda: ctrl.machine_id == "ender3_pro", "Ender selected again")
         assert win.switcher.count() == 2 and win.switcher.isVisibleTo(win)
 
         prepare = win.pages["Prepare"]
@@ -334,6 +355,7 @@ async def multi_printer_scenario(win, ctrl, shot):
     finally:
         await fake.stop()
         await pi.stop()
+        await pi2.stop()
 
 
 async def share_scenario(win, ctrl, shot):
@@ -401,6 +423,8 @@ def main():
     app = QApplication(sys.argv[:1])
     app.setOrganizationName("OpenBot-smoke")
     app.setApplicationName("OpenBot-smoke")
+    from PySide6.QtCore import QSettings
+    QSettings().clear()          # start from no saved printers every run
     loop = qasync.QEventLoop(app)
     asyncio.set_event_loop(loop)
     ctrl = PrinterHub()

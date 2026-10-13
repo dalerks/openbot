@@ -36,7 +36,7 @@ run on a Raspberry Pi next to the printer.
 | Printing | Upload & print, pause/resume/cancel | Print over USB, save to an SD card (FAT32 check, safe names, eject), or upload to the Klipper Pi, which runs the print so your Mac can sleep; reprint files stored on the Pi |
 | Camera | Live view, snapshots, photo of each finished print | Klipper: the Pi's webcam, with Mainsail's flip/rotate settings |
 | Printer settings | Wi-Fi scan/join/forget, static IP/DHCP, rename | G-code console, preheat, home, emergency stop (Klipper: plus Restart Firmware) |
-| Klipper extras | – | **Fast** speed preset (Klipper accelerations, about 1.5–2× stock) and **probe the bed** (`BED_MESH_CALIBRATE`) before each print when the printer has a BLTouch or other probe |
+| Klipper extras | – | **Fast** speed preset (Klipper accelerations, with extrusion capped at what the stock hotend can melt) and **probe the bed** (`BED_MESH_CALIBRATE`) before each print when the printer has a BLTouch or other probe |
 | Safety | Build-volume and temperature checks on every file | PTFE-safe temperature limits for the stock hotend (240 °C) |
 
 **Several printers at once:**
@@ -84,7 +84,7 @@ sudo openbot-server server clients
 
 1. **Replicator+:** Printers → Find Printers → Connect. Trust the printer's certificate, then press the knob on the printer once to pair.
 2. **Ender-3 over USB:** plug in USB, then Printers → USB printers → Refresh → Connect USB. Or slice and use **Save to SD Card…**.
-3. **Ender-3 on Klipper:** Printers → Klipper printers → enter the address you open Mainsail at → Connect. OpenBot uses Moonraker's API, and asks for a login only if your Moonraker requires one.
+3. **Ender-3 on Klipper:** Printers → Klipper printers → enter the address you open Mainsail at → **Add & Connect**. Add as many Mainsail/Fluidd printers as you have: each gets a row with Connect, Disconnect and Remove. OpenBot uses Moonraker's API, and asks for a login only if your Moonraker requires one.
 4. **More printers:** connect the next one the same way; the others stay connected. Choose which one you're working with in **Printer:** at the top of the sidebar.
 5. **Prepare:** Add Models → pick material and quality → Slice → Print. On a Klipper printer, also choose **Speed** (Standard or Fast) and whether to **probe the bed** first.
 
